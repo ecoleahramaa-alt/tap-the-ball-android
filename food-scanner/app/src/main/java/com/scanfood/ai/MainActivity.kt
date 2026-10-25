@@ -300,6 +300,7 @@ class MainActivity : Activity() {
             com.google.zxing.integration.android.IntentIntegrator(this)
                 .setPrompt("Place le code-barres dans le cadre")
                 .setBeepEnabled(false)
+                .setCameraId(0)
                 .setOrientationLocked(false)
                 .setDesiredBarcodeFormats(com.google.zxing.integration.android.IntentIntegrator.ALL_CODE_TYPES)
                 .initiateScan()
@@ -323,8 +324,14 @@ class MainActivity : Activity() {
     private fun search() {
         val q = searchInput.text.toString().trim()
         if (q.isEmpty()) { searchInput.error = "Saisis un nom ou scanne un code"; return }
-        status.text = "Recherche en cours…"
+        status.text = "ScanFood AI"
         resultBox.removeAllViews()
+        val loadingCard = card()
+        loadingCard.orientation = LinearLayout.HORIZONTAL
+        loadingCard.gravity = Gravity.CENTER_VERTICAL
+        loadingCard.addView(ProgressBar(this).apply { isIndeterminate = true }, LinearLayout.LayoutParams(dp(34), dp(34)))
+        loadingCard.addView(text("  Recherche des informations nutritionnelles…", 14f, green, true))
+        resultBox.addView(loadingCard, margin())
         executor.execute {
             try {
                 val isBarcode = q.matches(Regex("\\d{8,14}"))
