@@ -47,7 +47,7 @@ public class MainActivity extends Activity {
 
         ArcadeView(Context c) {
             super(c);
-            prefs = c.getSharedPreferences("neon_tap_save", MODE_PRIVATE);
+            prefs = c.getSharedPreferences("neon_tap_save", Context.MODE_PRIVATE);
             best = prefs.getInt("best", 0);
             setLayerType(View.LAYER_TYPE_SOFTWARE, null);
             for (int i=0;i<55;i++) stars.add(new Star(random.nextFloat(), random.nextFloat(), 1+random.nextFloat()*2));
