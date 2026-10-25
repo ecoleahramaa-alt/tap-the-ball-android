@@ -44,7 +44,8 @@ public class MainActivity extends Activity {
         int score=0, best=0, level=1, kills=0, hp=3, xp=0, xpNeed=5, upgradeChoice=0;
         float px,py,playerR=17,joyX=0,joyY=0,joyBaseX=0,joyBaseY=0,joyKnobX=0,joyKnobY=0;
         boolean joyActive=false;
-        long lastFrame=0,spawnTimer=0,shotTimer=0,elapsed=0;
+        long lastFrame=0;
+        float spawnTimer=0,shotTimer=0,elapsed=0;
         float shake=0;
         String banner="";
         long bannerUntil=0;
