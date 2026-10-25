@@ -3,6 +3,7 @@ package com.example.taptheball;
 import android.app.Activity;
 import android.os.Bundle;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.LinearGradient;
@@ -15,216 +16,220 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
-import android.content.SharedPreferences;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.Random;
 
 public class MainActivity extends Activity {
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
-        Window w = getWindow();
-        w.setStatusBarColor(Color.rgb(9, 13, 31));
-        w.setNavigationBarColor(Color.rgb(9, 13, 31));
-        w.setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
-        setContentView(new ArcadeView(this));
+        Window w=getWindow();
+        w.setStatusBarColor(Color.rgb(7,10,24));
+        w.setNavigationBarColor(Color.rgb(7,10,24));
+        w.setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        setContentView(new SurvivorView(this));
     }
 
-    static class ArcadeView extends View {
-        final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-        final Random random = new Random();
+    static class SurvivorView extends View {
+        final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
+        final Random rng=new Random();
         final SharedPreferences prefs;
-        final ArrayList<Particle> particles = new ArrayList<>();
-        final ArrayList<Star> stars = new ArrayList<>();
-        int screen = 0; // 0 menu, 1 playing, 2 result
-        int score = 0, best, seconds = 30, combo = 0, maxCombo = 0;
-        long lastSecond = 0, lastFrame = 0;
-        float targetX, targetY, targetR = 38, bombX = -200, bombY = -200, bombR = 28;
-        boolean bombVisible = false;
-        float pulse = 0;
-        String message = "READY?";
-        final int bg = Color.rgb(9,13,31), cyan = Color.rgb(63,235,222), pink = Color.rgb(255,80,153), gold = Color.rgb(255,208,76);
-        float downX, downY;
+        final ArrayList<Enemy> enemies=new ArrayList<>();
+        final ArrayList<Bullet> bullets=new ArrayList<>();
+        final ArrayList<Gem> gems=new ArrayList<>();
+        final ArrayList<Particle> particles=new ArrayList<>();
+        final ArrayList<Star> stars=new ArrayList<>();
+        final int bg=Color.rgb(7,10,24), cyan=Color.rgb(52,239,222), blue=Color.rgb(68,142,255), pink=Color.rgb(255,70,137), gold=Color.rgb(255,207,76), white=Color.WHITE;
+        int screen=0; // menu, playing, paused, game over
+        int score=0, best=0, level=1, kills=0, hp=3, xp=0, xpNeed=5, upgradeChoice=0;
+        float px,py,playerR=17,joyX=0,joyY=0,joyBaseX=0,joyBaseY=0,joyKnobX=0,joyKnobY=0;
+        boolean joyActive=false;
+        long lastFrame=0,spawnTimer=0,shotTimer=0,elapsed=0;
+        float shake=0;
+        String banner="";
+        long bannerUntil=0;
 
-        ArcadeView(Context c) {
-            super(c);
-            prefs = c.getSharedPreferences("neon_tap_save", Context.MODE_PRIVATE);
-            best = prefs.getInt("best", 0);
-            setLayerType(View.LAYER_TYPE_SOFTWARE, null);
-            for (int i=0;i<55;i++) stars.add(new Star(random.nextFloat(), random.nextFloat(), 1+random.nextFloat()*2));
-            setFocusable(true);
+        SurvivorView(Context c){
+            super(c); prefs=c.getSharedPreferences("neon_survivor_save",Context.MODE_PRIVATE);
+            best=prefs.getInt("best",0);
+            for(int i=0;i<85;i++) stars.add(new Star(rng.nextFloat(),rng.nextFloat(),.5f+rng.nextFloat()*1.7f));
+            setLayerType(View.LAYER_TYPE_SOFTWARE,null);
         }
 
-        void text(Canvas c, String s, float x, float y, float size, int color, boolean bold, Paint.Align align) {
-            p.setShader(null); p.setColor(color); p.setTextSize(size); p.setTextAlign(align);
-            p.setTypeface(Typeface.create("sans-serif" + (bold ? "-black" : ""), bold ? Typeface.BOLD : Typeface.NORMAL));
-            p.setStyle(Paint.Style.FILL); p.setShadowLayer(0,0,0,Color.TRANSPARENT); c.drawText(s,x,y,p);
+        void fill(Canvas c,int color){p.setShader(null);p.setStyle(Paint.Style.FILL);p.setColor(color);p.clearShadowLayer();}
+        void rect(Canvas c,float l,float t,float r,float b,int color){fill(c,color);c.drawRect(l,t,r,b,p);}
+        void round(Canvas c,float l,float t,float r,float b,float rad,int color){fill(c,color);c.drawRoundRect(l,t,r,b,rad,rad,p);}
+        void circle(Canvas c,float x,float y,float r,int color){fill(c,color);c.drawCircle(x,y,r,p);}
+        void label(Canvas c,String s,float x,float y,float size,int color,boolean bold,Paint.Align align){
+            fill(c,color);p.setTextSize(size);p.setTextAlign(align);p.setTypeface(Typeface.create(bold?"sans-serif-black":"sans-serif",bold?Typeface.BOLD:Typeface.NORMAL));c.drawText(s,x,y,p);
+        }
+        void line(Canvas c,float x1,float y1,float x2,float y2,int color,float width){
+            fill(c,color);p.setStrokeWidth(width);p.setStrokeCap(Paint.Cap.ROUND);c.drawLine(x1,y1,x2,y2,p);
         }
 
-        void rounded(Canvas c,float l,float t,float r,float b,float rad,int color) {
-            p.setShader(null); p.setStyle(Paint.Style.FILL); p.setColor(color); p.clearShadowLayer();
-            c.drawRoundRect(l,t,r,b,rad,rad,p);
+        @Override protected void onDraw(Canvas c){
+            super.onDraw(c); long now=System.currentTimeMillis();
+            float dt=lastFrame==0?.016f:Math.min(.04f,(now-lastFrame)/1000f);lastFrame=now;
+            int w=getWidth(),h=getHeight();
+            p.setShader(new LinearGradient(0,0,w,h,new int[]{Color.rgb(7,10,26),Color.rgb(18,16,47),Color.rgb(7,24,39)},null,Shader.TileMode.CLAMP));c.drawRect(0,0,w,h,p);p.setShader(null);
+            for(Star s:stars){circle(c,s.x*w,s.y*h,s.r,Color.argb(s.a,130,190,255));if(screen==1)s.y=(s.y+.00025f*dt*60)%1f;}
+            if(screen==0) drawMenu(c,w,h);
+            else if(screen==1) { update(dt,now,w,h); drawWorld(c,w,h); drawHUD(c,w,h); }
+            else if(screen==2) { drawWorld(c,w,h); drawPause(c,w,h); }
+            else drawGameOver(c,w,h);
+            drawParticles(c,dt);
+            postInvalidateDelayed(16);
         }
 
-        void logo(Canvas c, float cx, float cy, float scale) {
-            p.setShader(null); p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(4*scale); p.setColor(cyan);
-            p.setShadowLayer(18*scale,0,0,cyan); c.drawCircle(cx,cy,31*scale,p); p.clearShadowLayer();
-            p.setStyle(Paint.Style.FILL); p.setColor(pink); c.drawCircle(cx+9*scale,cy-8*scale,12*scale,p);
-            p.setColor(gold); c.drawCircle(cx-10*scale,cy+10*scale,7*scale,p);
-            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(2*scale); p.setColor(Color.WHITE);
-            c.drawArc(cx-21*scale,cy-21*scale,cx+21*scale,cy+21*scale,210,105,false,p);
-            p.setStyle(Paint.Style.FILL);
+        void logo(Canvas c,float x,float y,float s){
+            p.setShader(null);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(3*s);p.setColor(cyan);p.setShadowLayer(14*s,0,0,cyan);c.drawCircle(x,y,29*s,p);p.clearShadowLayer();
+            p.setStyle(Paint.Style.FILL);p.setColor(blue);Path ship=new Path();ship.moveTo(x,y-22*s);ship.lineTo(x+17*s,y+15*s);ship.lineTo(x,y+8*s);ship.lineTo(x-17*s,y+15*s);ship.close();c.drawPath(ship,p);
+            p.setColor(white);c.drawCircle(x,y-3*s,4*s,p);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(2*s);p.setColor(pink);c.drawArc(x-38*s,y-38*s,x+38*s,y+38*s,35,100,false,p);p.setStyle(Paint.Style.FILL);
         }
 
-        @Override protected void onDraw(Canvas c) {
-            super.onDraw(c);
-            int w=getWidth(), h=getHeight();
-            p.setShader(new LinearGradient(0,0,w,h, new int[]{Color.rgb(10,15,38),Color.rgb(24,18,53),Color.rgb(8,22,40)},null,Shader.TileMode.CLAMP));
-            c.drawRect(0,0,w,h,p); p.setShader(null);
-            for (Star s:stars) { p.setColor(Color.argb(s.a,170,210,255)); c.drawCircle(s.x*w,s.y*h,s.r,p); }
-            pulse += .045f;
-            if (screen==0) drawMenu(c,w,h);
-            else if (screen==1) drawGame(c,w,h);
-            else drawResult(c,w,h);
-            drawParticles(c);
-            postInvalidateDelayed(32);
-        }
-
-        void drawMenu(Canvas c,int w,int h) {
+        void drawMenu(Canvas c,int w,int h){
             float cx=w/2f;
-            logo(c,cx,h*.19f,1.35f);
-            text(c,"NEON",cx,h*.19f+82,46,Color.WHITE,true,Paint.Align.CENTER);
-            text(c,"TAP",cx,h*.19f+126,46,cyan,true,Paint.Align.CENTER);
-            text(c,"ARCADE • QUICK REFLEX CHALLENGE",cx,h*.19f+158,11,Color.rgb(170,184,220),true,Paint.Align.CENTER);
-            float cardTop=h*.43f;
-            rounded(c,24,cardTop,w-24,cardTop+116,22,Color.argb(185,26,34,67));
-            text(c,"30 SECONDS",cx,cardTop+35,17,gold,true,Paint.Align.CENTER);
-            text(c,"Tap cyan targets. Avoid pink bombs!",cx,cardTop+64,14,Color.WHITE,false,Paint.Align.CENTER);
-            text(c,"Build combos for bonus points",cx,cardTop+88,13,Color.rgb(173,194,222),false,Paint.Align.CENTER);
-            float by=h*.68f;
-            rounded(c,34,by,w-34,by+62,19,cyan);
-            text(c,"PLAY NOW  ▶",cx,by+39,19,bg,true,Paint.Align.CENTER);
-            text(c,"BEST SCORE   "+best,cx,by+105,15,Color.WHITE,true,Paint.Align.CENTER);
-            text(c,"One tap can change everything.",cx,h-34,12,Color.rgb(143,158,195),false,Paint.Align.CENTER);
+            logo(c,cx,h*.18f,1.35f);
+            label(c,"NEON",cx,h*.18f+76,48,white,true,Paint.Align.CENTER);
+            label(c,"SURVIVOR",cx,h*.18f+119,35,cyan,true,Paint.Align.CENTER);
+            label(c,"2D SPACE SURVIVAL ARCADE",cx,h*.18f+148,12,Color.rgb(164,183,220),true,Paint.Align.CENTER);
+            round(c,24,h*.37f,w-24,h*.37f+116,20,Color.argb(210,25,32,63));
+            label(c,"SURVIVE THE SWARM",cx,h*.37f+31,17,gold,true,Paint.Align.CENTER);
+            label(c,"Move with the left thumbstick",cx,h*.37f+60,14,white,false,Paint.Align.CENTER);
+            label(c,"Your ship fires automatically",cx,h*.37f+83,14,white,false,Paint.Align.CENTER);
+            label(c,"Collect energy • Level up • Stay alive",cx,h*.37f+103,12,Color.rgb(167,187,222),false,Paint.Align.CENTER);
+            round(c,32,h*.58f,w-32,h*.58f+62,18,cyan);
+            label(c,"▶  START MISSION",cx,h*.58f+39,19,bg,true,Paint.Align.CENTER);
+            label(c,"BEST SCORE   "+best,cx,h*.58f+102,15,gold,true,Paint.Align.CENTER);
+            label(c,"3 lives • Endless waves • Bosses every 5 levels",cx,h-40,11,Color.rgb(151,169,207),false,Paint.Align.CENTER);
         }
 
-        void drawGame(Canvas c,int w,int h) {
-            text(c,"NEON TAP",22,36,16,Color.WHITE,true,Paint.Align.LEFT);
-            rounded(c,w-102,13,w-20,47,16,Color.argb(200,38,44,78));
-            text(c,seconds+"s",w-61,37,19,seconds<=7?pink:gold,true,Paint.Align.CENTER);
-            text(c,"SCORE",22,73,10,Color.rgb(156,174,211),true,Paint.Align.LEFT);
-            text(c,String.valueOf(score),22,112,37,Color.WHITE,true,Paint.Align.LEFT);
-            text(c,"COMBO x"+combo, w-22,76,13,cyan,true,Paint.Align.RIGHT);
-            text(c,"Tap the glowing targets",w/2f,h-35,13,Color.rgb(168,183,216),false,Paint.Align.CENTER);
-            // Target glow
-            p.setShader(new RadialGradient(targetX,targetY,targetR*1.8f,new int[]{Color.argb(105,63,235,222),Color.argb(0,63,235,222)},null,Shader.TileMode.CLAMP));
-            c.drawCircle(targetX,targetY,targetR*1.8f,p); p.setShader(null);
-            p.setColor(cyan); p.setStyle(Paint.Style.FILL); c.drawCircle(targetX,targetY,targetR,p);
-            p.setColor(Color.WHITE); c.drawCircle(targetX,targetY,targetR*.66f,p);
-            p.setColor(cyan); c.drawCircle(targetX,targetY,targetR*.48f,p);
-            p.setColor(Color.WHITE); c.drawCircle(targetX,targetY,targetR*.13f,p);
-            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(2); p.setColor(Color.argb(180,255,255,255));
-            c.drawCircle(targetX,targetY,targetR+7+(float)Math.sin(pulse)*3,p); p.setStyle(Paint.Style.FILL);
-            if (bombVisible) {
-                p.setColor(pink); c.drawCircle(bombX,bombY,bombR,p);
-                p.setColor(Color.WHITE); p.setStrokeWidth(4); p.setStyle(Paint.Style.STROKE);
-                c.drawLine(bombX-9,bombY-9,bombX+9,bombY+9,p); c.drawLine(bombX+9,bombY-9,bombX-9,bombY+9,p); p.setStyle(Paint.Style.FILL);
+        void startGame(){
+            screen=1;score=0;level=1;kills=0;hp=3;xp=0;xpNeed=5;elapsed=0;shake=0;
+            enemies.clear();bullets.clear();gems.clear();particles.clear();
+            px=getWidth()/2f;py=getHeight()*.67f;spawnTimer=0;shotTimer=0;lastFrame=System.currentTimeMillis();
+            banner="MISSION START";bannerUntil=System.currentTimeMillis()+1400;joyActive=false;
+        }
+
+        void update(float dt,long now,int w,int h){
+            elapsed+=dt;
+            if(joyActive){
+                px+=joyX*235*dt;py+=joyY*235*dt;
+                px=Math.max(22,Math.min(w-22,px));py=Math.max(80,Math.min(h-90,py));
             }
-        }
-
-        void drawResult(Canvas c,int w,int h) {
-            float cx=w/2f;
-            logo(c,cx,h*.22f,1.0f);
-            text(c,"TIME'S UP!",cx,h*.22f+75,32,Color.WHITE,true,Paint.Align.CENTER);
-            text(c,"YOUR SCORE",cx,h*.22f+120,13,Color.rgb(171,188,220),true,Paint.Align.CENTER);
-            text(c,String.valueOf(score),cx,h*.22f+178,66,cyan,true,Paint.Align.CENTER);
-            if(score>=best && score>0) text(c,"✦ NEW PERSONAL BEST! ✦",cx,h*.22f+215,14,gold,true,Paint.Align.CENTER);
-            else text(c,"BEST SCORE  "+best,cx,h*.22f+215,14,gold,true,Paint.Align.CENTER);
-            rounded(c,28,h*.52f,w-28,h*.52f+86,18,Color.argb(190,26,34,67));
-            text(c,"BEST COMBO",cx-75,h*.52f+33,12,Color.rgb(165,184,220),true,Paint.Align.CENTER);
-            text(c,""+maxCombo,cx-75,h*.52f+61,24,Color.WHITE,true,Paint.Align.CENTER);
-            text(c,"TARGETS HIT",cx+75,h*.52f+33,12,Color.rgb(165,184,220),true,Paint.Align.CENTER);
-            text(c,""+score,cx+75,h*.52f+61,24,Color.WHITE,true,Paint.Align.CENTER);
-            float by=h*.68f;
-            rounded(c,30,by,w-30,by+60,18,cyan);
-            text(c,"PLAY AGAIN  ↻",cx,by+38,18,bg,true,Paint.Align.CENTER);
-            text(c,"HOME",cx,h-35,13,Color.rgb(166,184,216),true,Paint.Align.CENTER);
-        }
-
-        void moveTarget() {
-            float margin=targetR+12, top=145, bottom=getHeight()-90;
-            targetX=margin+random.nextFloat()*Math.max(1,getWidth()-margin*2);
-            targetY=top+random.nextFloat()*Math.max(1,bottom-top);
-            targetR=Math.max(27,38-Math.min(9,score/8f));
-            bombVisible=score>=4 && random.nextFloat()<0.48f;
-            if(bombVisible) {
-                bombX=margin+random.nextFloat()*Math.max(1,getWidth()-margin*2);
-                bombY=top+random.nextFloat()*Math.max(1,bottom-top);
-                if(Math.hypot(bombX-targetX,bombY-targetY)<targetR+bombR+25) bombVisible=false;
+            spawnTimer-=dt;
+            if(spawnTimer<=0){spawnEnemy(w,h);spawnTimer=Math.max(.32f,1.05f-level*.055f);}
+            shotTimer-=dt;
+            if(shotTimer<=0 && !enemies.isEmpty()){
+                Enemy nearest=null;float dist=Float.MAX_VALUE;
+                for(Enemy e:enemies){float d=dist(px,py,e.x,e.y);if(d<dist){dist=d;nearest=e;}}
+                if(nearest!=null){float dx=nearest.x-px,dy=nearest.y-py,len=Math.max(1,(float)Math.hypot(dx,dy));bullets.add(new Bullet(px,py,dx/len*430,dy/len*430));shotTimer=.28f;}
             }
-        }
-
-        void start() {
-            score=0; seconds=30; combo=0; maxCombo=0; screen=1;
-            particles.clear(); lastSecond=System.currentTimeMillis(); moveTarget(); invalidate();
-        }
-
-        void end() {
-            screen=2; bombVisible=false;
-            if(score>best) { best=score; prefs.edit().putInt("best",best).apply(); }
-            invalidate();
-        }
-
-        void burst(float x,float y,int color) {
-            for(int i=0;i<14;i++) {
-                double a=random.nextDouble()*Math.PI*2;
-                float speed=2+random.nextFloat()*7;
-                particles.add(new Particle(x,y,(float)Math.cos(a)*speed,(float)Math.sin(a)*speed,color,22+random.nextInt(15)));
+            Iterator<Enemy> ei=enemies.iterator();
+            while(ei.hasNext()){
+                Enemy e=ei.next();float dx=px-e.x,dy=py-e.y,len=Math.max(1,(float)Math.hypot(dx,dy));
+                e.x+=dx/len*e.speed*dt;e.y+=dy/len*e.speed*dt;
+                if(dist(px,py,e.x,e.y)<playerR+e.r){ei.remove();hp--;shake=10;burst(px,py,pink,18);if(hp<=0){finish();return;}}
+                else if(e.y>h+50||e.x< -50||e.x>w+50)ei.remove();
             }
+            Iterator<Bullet> bi=bullets.iterator();
+            while(bi.hasNext()){
+                Bullet b=bi.next();b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;
+                boolean hit=false;
+                Iterator<Enemy> ej=enemies.iterator();
+                while(ej.hasNext()){Enemy e=ej.next();if(dist(b.x,b.y,e.x,e.y)<e.r+5){ej.remove();hit=true;kills++;score+=10+level*2;gems.add(new Gem(e.x,e.y));burst(e.x,e.y,e.boss?gold:pink,e.boss?28:12);if(e.boss){score+=100;level++;banner="BOSS DOWN! +100";bannerUntil=now+1500;}break;}}
+                if(hit||b.life<=0||b.x<0||b.x>w||b.y<0||b.y>h)bi.remove();
+            }
+            Iterator<Gem> gi=gems.iterator();
+            while(gi.hasNext()){Gem g=gi.next();float d=dist(px,py,g.x,g.y);if(d<90){float dx=px-g.x,dy=py-g.y,len=Math.max(1,(float)Math.hypot(dx,dy));g.x+=dx/len*130*dt;g.y+=dy/len*130*dt;}if(d<playerR+g.r+5){gi.remove();xp++;score+=2;burst(g.x,g.y,cyan,7);if(xp>=xpNeed){xp-=xpNeed;xpNeed+=2;level++;banner="LEVEL "+level+"  •  DAMAGE UP";bannerUntil=now+1600;}}
+            }
+            if(shake>0)shake=Math.max(0,shake-dt*25);
         }
 
-        void drawParticles(Canvas c) {
-            for(int i=particles.size()-1;i>=0;i--) {
-                Particle q=particles.get(i); q.x+=q.vx; q.y+=q.vy; q.vy+=.12f; q.life--;
-                p.setColor(Color.argb(Math.max(0,Math.min(255,q.life*10)),Color.red(q.color),Color.green(q.color),Color.blue(q.color)));
-                c.drawCircle(q.x,q.y,Math.max(1,q.life/5f),p);
-                if(q.life<=0) particles.remove(i);
-            }
+        float dist(float x1,float y1,float x2,float y2){return (float)Math.hypot(x2-x1,y2-y1);}
+        void spawnEnemy(int w,int h){
+            int edge=rng.nextInt(4);float x,y;
+            if(edge==0){x=-20;y=rng.nextFloat()*h*.75f;}
+            else if(edge==1){x=w+20;y=rng.nextFloat()*h*.75f;}
+            else if(edge==2){x=rng.nextFloat()*w;y=65;}
+            else{x=rng.nextFloat()*w;y=-20;}
+            boolean boss=level%5==0 && kills>0 && kills%25==0 && rng.nextFloat()<.12f;
+            enemies.add(new Enemy(x,y,boss?25:12+rng.nextFloat()*5,(boss?48:48+level*5),boss?gold:pink,boss));
         }
 
-        @Override public boolean onTouchEvent(MotionEvent e) {
-            if(e.getAction()!=MotionEvent.ACTION_DOWN) return true;
-            float x=e.getX(), y=e.getY(); int w=getWidth(), h=getHeight();
-            if(screen==0) { start(); return true; }
-            if(screen==2) {
-                if(y>h*.62f) start(); else screen=0;
-                invalidate(); return true;
-            }
-            if(bombVisible && Math.hypot(x-bombX,y-bombY)<=bombR+12) {
-                score=Math.max(0,score-3); combo=0; bombVisible=false; burst(bombX,bombY,pink); message="OOPS"; invalidate(); return true;
-            }
-            if(Math.hypot(x-targetX,y-targetY)<=targetR+12) {
-                combo++; maxCombo=Math.max(maxCombo,combo);
-                score += 1 + (combo>=5 ? 2 : combo>=3 ? 1 : 0);
-                burst(targetX,targetY,cyan); moveTarget();
-            } else {
-                combo=0;
-            }
-            invalidate(); return true;
+        void drawWorld(Canvas c,int w,int h){
+            c.save();if(shake>0)c.translate((rng.nextFloat()-.5f)*shake,(rng.nextFloat()-.5f)*shake);
+            for(Gem g:gems){circle(c,g.x,g.y,g.r+5,Color.argb(45,52,239,222));Path d=new Path();d.moveTo(g.x,g.y-g.r);d.lineTo(g.x+g.r,g.y);d.lineTo(g.x,g.y+g.r);d.lineTo(g.x-g.r,g.y);d.close();fill(c,cyan);c.drawPath(d,p);}
+            for(Bullet b:bullets){p.setShader(new LinearGradient(b.x,b.y,b.x-b.vx*.035f,b.y-b.vy*.035f,cyan,Color.TRANSPARENT,Shader.TileMode.CLAMP));c.drawCircle(b.x,b.y,4,p);p.setShader(null);}
+            for(Enemy e:enemies){circle(c,e.x,e.y,e.r+5,Color.argb(45,255,70,137));p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(e.boss?3:2);p.setColor(e.color);c.drawCircle(e.x,e.y,e.r,p);p.setStyle(Paint.Style.FILL);circle(c,e.x,e.y,e.r*.55f,e.color);circle(c,e.x-e.r*.18f,e.y-e.r*.18f,3,white);}
+            drawShip(c,px,py,playerR);
+            c.restore();
         }
 
-        @Override public void computeScroll() {
-            super.computeScroll();
-            if(screen==1) {
-                long now=System.currentTimeMillis();
-                if(now-lastSecond>=1000) {
-                    int dec=(int)((now-lastSecond)/1000);
-                    seconds-=dec; lastSecond+=dec*1000L;
-                    if(seconds<=0) { seconds=0; end(); }
-                }
-            }
+        void drawShip(Canvas c,float x,float y,float r){
+            p.setShader(new RadialGradient(x,y,r*2,new int[]{Color.argb(90,52,239,222),Color.TRANSPARENT},null,Shader.TileMode.CLAMP));c.drawCircle(x,y,r*2,p);p.setShader(null);
+            Path ship=new Path();ship.moveTo(x,y-r*1.35f);ship.lineTo(x+r*.9f,y+r*.85f);ship.lineTo(x,y+r*.42f);ship.lineTo(x-r*.9f,y+r*.85f);ship.close();
+            p.setShader(new LinearGradient(x-r,y-r,x+r,y+r,cyan,blue,Shader.TileMode.CLAMP));c.drawPath(ship,p);p.setShader(null);
+            p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(2);p.setColor(white);c.drawPath(ship,p);p.setStyle(Paint.Style.FILL);
+            if(joyActive){circle(c,x,y+r*1.3f,3,pink);}
         }
 
-        static class Star { float x,y,r; int a; Star(float x,float y,float r){this.x=x;this.y=y;this.r=r;this.a=70+(int)(Math.random()*120);} }
-        static class Particle { float x,y,vx,vy; int color,life; Particle(float x,float y,float vx,float vy,int color,int life){this.x=x;this.y=y;this.vx=vx;this.vy=vy;this.color=color;this.life=life;} }
+        void drawHUD(Canvas c,int w,int h){
+            round(c,12,12,w-12,64,16,Color.argb(215,18,25,52));
+            label(c,"SCORE",25,31,9,Color.rgb(154,178,218),true,Paint.Align.LEFT);
+            label(c,String.valueOf(score),25,53,20,white,true,Paint.Align.LEFT);
+            label(c,"LV "+level,w*.49f,43,15,cyan,true,Paint.Align.CENTER);
+            label(c,"❤ "+hp,w-65,43,17,pink,true,Paint.Align.CENTER);
+            round(c,14,72,w-14,78,3,Color.rgb(42,54,85));
+            round(c,14,72,14+(w-28)*(xp/(float)xpNeed),78,3,cyan);
+            round(c,w-49,86,w-13,122,12,Color.argb(190,40,47,78));
+            label(c,"Ⅱ",w-31,110,19,white,true,Paint.Align.CENTER);
+            // virtual joystick
+            circle(c,66,h-90,43,Color.argb(45,160,190,240));
+            p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(2);p.setColor(Color.argb(100,180,210,255));c.drawCircle(66,h-90,43,p);p.setStyle(Paint.Style.FILL);
+            circle(c,66+(joyActive?joyX*22:0),h-90+(joyActive?joyY*22:0),20,Color.argb(105,52,239,222));
+            label(c,"MOVE",66,h-31,9,Color.rgb(150,174,213),true,Paint.Align.CENTER);
+            if(System.currentTimeMillis()<bannerUntil){round(c,w*.15f,h*.25f,w*.85f,h*.25f+42,14,Color.argb(220,23,35,67));label(c,banner,w/2f,h*.25f+27,16,gold,true,Paint.Align.CENTER);}
+        }
+
+        void drawPause(Canvas c,int w,int h){
+            rect(c,0,0,w,h,Color.argb(185,3,5,18));label(c,"PAUSED",w/2f,h*.39f,36,white,true,Paint.Align.CENTER);
+            round(c,32,h*.47f,w-32,h*.47f+58,16,cyan);label(c,"▶  RESUME",w/2f,h*.47f+37,18,bg,true,Paint.Align.CENTER);
+            round(c,32,h*.47f+75,w-32,h*.47f+133,16,Color.rgb(41,49,80));label(c,"EXIT TO MENU",w/2f,h*.47f+112,16,white,true,Paint.Align.CENTER);
+        }
+
+        void drawGameOver(Canvas c,int w,int h){
+            label(c,"MISSION FAILED",w/2f,h*.27f,30,white,true,Paint.Align.CENTER);
+            label(c,""+score,w/2f,h*.38f,64,cyan,true,Paint.Align.CENTER);
+            label(c,"FINAL SCORE",w/2f,h*.38f+28,12,Color.rgb(164,184,222),true,Paint.Align.CENTER);
+            label(c,"BEST  "+best+"     LEVEL  "+level,w/2f,h*.46f,16,gold,true,Paint.Align.CENTER);
+            round(c,32,h*.56f,w-32,h*.56f+60,18,cyan);label(c,"↻  TRY AGAIN",w/2f,h*.56f+38,19,bg,true,Paint.Align.CENTER);
+            round(c,32,h*.56f+76,w-32,h*.56f+132,18,Color.rgb(37,45,77));label(c,"MAIN MENU",w/2f,h*.56f+111,16,white,true,Paint.Align.CENTER);
+        }
+
+        void finish(){screen=3;joyActive=false;if(score>best){best=score;prefs.edit().putInt("best",best).apply();}}
+        void burst(float x,float y,int color,int count){for(int i=0;i<count;i++){double a=rng.nextDouble()*Math.PI*2;float sp=30+rng.nextFloat()*190;particles.add(new Particle(x,y,(float)Math.cos(a)*sp,(float)Math.sin(a)*sp,color,.35f+rng.nextFloat()*.5f));}}
+        void drawParticles(Canvas c,float dt){Iterator<Particle> it=particles.iterator();while(it.hasNext()){Particle q=it.next();q.x+=q.vx*dt;q.y+=q.vy*dt;q.life-=dt;q.vx*=.97f;q.vy*=.97f;if(q.life<=0){it.remove();continue;}p.setColor(Color.argb((int)(Math.min(1,q.life*2)*220),Color.red(q.color),Color.green(q.color),Color.blue(q.color)));c.drawCircle(q.x,q.y,Math.max(1,q.life*5),p);}}
+
+        @Override public boolean onTouchEvent(MotionEvent e){
+            float x=e.getX(),y=e.getY();int w=getWidth(),h=getHeight();
+            if(e.getAction()==MotionEvent.ACTION_DOWN){
+                if(screen==0){startGame();return true;}
+                if(screen==3){if(y>h*.56f && y<h*.56f+70)startGame();else if(y>h*.56f+70)screen=0;invalidate();return true;}
+                if(screen==2){if(y>h*.47f && y<h*.47f+65)screen=1;else if(y>h*.47f+70 && y<h*.47f+145){screen=0;enemies.clear();bullets.clear();gems.clear();}invalidate();return true;}
+                if(x>w-65 && y<135){screen=2;joyActive=false;invalidate();return true;}
+                if(x<w*.34f && y>h*.55f){joyActive=true;joyBaseX=66;joyBaseY=h-90;updateJoy(x,y);return true;}
+                return true;
+            }
+            if(e.getAction()==MotionEvent.ACTION_MOVE && screen==1 && joyActive){updateJoy(x,y);return true;}
+            if(e.getAction()==MotionEvent.ACTION_UP || e.getAction()==MotionEvent.ACTION_CANCEL){joyActive=false;joyX=joyY=0;return true;}
+            return true;
+        }
+        void updateJoy(float x,float y){float dx=x-joyBaseX,dy=y-joyBaseY;float len=(float)Math.hypot(dx,dy);if(len>1){joyX=dx/Math.max(35,len);joyY=dy/Math.max(35,len);}else{joyX=joyY=0;}}
+        static class Star{float x,y,r;int a;Star(float x,float y,float r){this.x=x;this.y=y;this.r=r;a=45+(int)(Math.random()*125);}}
+        static class Enemy{float x,y,r,speed;int color;boolean boss;Enemy(float x,float y,float r,float speed,int color,boolean boss){this.x=x;this.y=y;this.r=r;this.speed=speed;this.color=color;this.boss=boss;}}
+        static class Bullet{float x,y,vx,vy,life=1.6f;Bullet(float x,float y,float vx,float vy){this.x=x;this.y=y;this.vx=vx;this.vy=vy;}}
+        static class Gem{float x,y,r=6;Gem(float x,float y){this.x=x;this.y=y;}}
+        static class Particle{float x,y,vx,vy,life;int color;Particle(float x,float y,float vx,float vy,int color,float life){this.x=x;this.y=y;this.vx=vx;this.vy=vy;this.color=color;this.life=life;}}
     }
 }
