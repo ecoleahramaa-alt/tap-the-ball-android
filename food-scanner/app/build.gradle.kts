@@ -7,7 +7,7 @@ android {
     namespace = "com.scanfoodai.foodscanner.nutrition"
     compileSdk = 35
     defaultConfig {
-        applicationId = "com.scanfoodai.nutrition"
+        applicationId = "com.scanfoodai.foodscanner.nutrition"
         minSdk = 23
         targetSdk = 35
         versionCode = 3
