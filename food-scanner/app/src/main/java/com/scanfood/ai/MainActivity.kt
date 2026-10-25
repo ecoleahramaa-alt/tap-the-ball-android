@@ -77,7 +77,7 @@ class MainActivity : Activity() {
             )
         }
         val logo = ImageView(this).apply {
-            setImageResource(com.scanfoodai.nutrition.R.drawable.ic_scanfood_logo)
+            setImageResource(com.scanfoodai.foodscanner.nutrition.R.drawable.ic_scanfood_logo)
             layoutParams = LinearLayout.LayoutParams(dp(126), dp(126)).apply { bottomMargin = dp(24) }
             contentDescription = "ScanFood AI logo"
         }
@@ -130,7 +130,7 @@ class MainActivity : Activity() {
     }
     private fun showHome() {
         resetContent()
-        root.addView(text("🥑 ScanFood AI     ⚙", 27f, green, true))
+        root.addView(text("🥑 ScanFood AI", 27f, green, true))
         root.addView(text("Scannez • Découvrez • Mangez mieux", 14f, muted))
         val banner = card().apply { setBackgroundColor(Color.rgb(8, 127, 91)); background = android.graphics.drawable.GradientDrawable().apply { setColor(Color.rgb(8,127,91)); cornerRadius=dp(22).toFloat() } }
         banner.addView(text("Mangez plus malin 🌿", 23f, Color.WHITE, true))
