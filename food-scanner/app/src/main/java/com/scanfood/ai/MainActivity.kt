@@ -308,19 +308,31 @@ class MainActivity : Activity() {
         list.put(0, item); while (list.length() > 100) list.remove(list.length() - 1)
         prefs.edit().putString(key, list.toString()).apply()
     }
-    private fun showFavorites() = showSaved("favorites", "❤️ المنتوجات المفضلة")
-    private fun showHistory() = showSaved("history", "🕘 آخر المنتوجات")
+    private fun showFavorites() = showSaved("favorites", "❤️ Mes favoris")
+    private fun showHistory() = showSaved("history", "🕘 Historique")
     private fun showSaved(key: String, title: String) {
-        resultBox.removeAllViews(); resultBox.addView(text(title, 20f, green, true))
+        resetContent()
+        root.addView(text(title, 25f, green, true))
+        root.addView(text("Vos produits enregistrés sur cet appareil.", 14f, muted))
+        resultBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        root.addView(resultBox, margin())
+        showSavedInto(key, resultBox)
+    }
+    private fun showSavedInto(key: String, target: LinearLayout) {
+        target.removeAllViews()
         val list = savedList(key)
-        if (list.length() == 0) { showMessage("مازال ما كاين حتى منتوج محفوظ هنا."); return }
+        if (list.length() == 0) {
+            val c = card(); c.addView(text(if(key=="history") "Les produits que vous scannez apparaîtront ici." else "Ajoutez des produits à vos favoris depuis leur fiche.", 14f, muted))
+            target.addView(c, margin()); return
+        }
         for (i in 0 until list.length()) {
             val item = list.optJSONObject(i) ?: continue
-            val c = card(); c.addView(text(item.optString("product_name", "Produit"), 18f, ink, true))
-            c.addView(text(item.optString("brands"), 13f, muted))
-            c.addView(text("Nutri-Score : " + item.optString("nutri-score_grade", item.optString("nutriscore_grade", "غير متوفر")), 14f, green, true))
-            c.addView(button("عرض التفاصيل", { renderProduct(item, item.optString("code")) }), margin())
-            resultBox.addView(c, margin())
+            val c = card()
+            c.addView(text(item.optString("product_name", "Produit"), 17f, ink, true))
+            c.addView(text(item.optString("brands", "Marque non renseignée"), 13f, muted))
+            c.addView(text("Nutri-Score : " + item.optString("nutriscore_grade", "non disponible").uppercase(), 14f, green, true))
+            c.addView(button("Voir la fiche", { resetContent(); resultBox=LinearLayout(this).apply { orientation=LinearLayout.VERTICAL }; root.addView(text("Détail du produit",24f,green,true)); root.addView(resultBox); renderProduct(item,item.optString("code")) }), margin())
+            target.addView(c, margin())
         }
     }
     private fun showMessage(message: String) {
