@@ -124,7 +124,14 @@ public class MainActivity extends Activity {
             if(shotTimer<=0 && !enemies.isEmpty()){
                 Enemy nearest=null;float dist=Float.MAX_VALUE;
                 for(Enemy e:enemies){float d=dist(px,py,e.x,e.y);if(d<dist){dist=d;nearest=e;}}
-                if(nearest!=null){float dx=nearest.x-px,dy=nearest.y-py,len=Math.max(1,(float)Math.hypot(dx,dy));bullets.add(new Bullet(px,py,dx/len*430,dy/len*430));shotTimer=.28f;}
+                if(nearest!=null){
+                    float dx=nearest.x-px,dy=nearest.y-py,len=Math.max(1,(float)Math.hypot(dx,dy));
+                    float vx=dx/len*430,vy=dy/len*430;
+                    bullets.add(new Bullet(px,py,vx,vy));
+                    if(level>=3){bullets.add(new Bullet(px,py,vx*.94f-vy*.22f,vy*.94f+vx*.22f));bullets.add(new Bullet(px,py,vx*.94f+vy*.22f,vy*.94f-vx*.22f));}
+                    if(level>=7){bullets.add(new Bullet(px,py,vx*.78f-vy*.62f,vy*.78f+vx*.62f));bullets.add(new Bullet(px,py,vx*.78f+vy*.62f,vy*.78f-vx*.62f));}
+                    shotTimer=Math.max(.12f,.28f-level*.012f);
+                }
             }
             Iterator<Enemy> ei=enemies.iterator();
             while(ei.hasNext()){
@@ -138,7 +145,7 @@ public class MainActivity extends Activity {
                 Bullet b=bi.next();b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;
                 boolean hit=false;
                 Iterator<Enemy> ej=enemies.iterator();
-                while(ej.hasNext()){Enemy e=ej.next();if(dist(b.x,b.y,e.x,e.y)<e.r+5){ej.remove();hit=true;kills++;score+=10+level*2;gems.add(new Gem(e.x,e.y));burst(e.x,e.y,e.boss?gold:pink,e.boss?28:12);if(e.boss){score+=100;level++;banner="BOSS DOWN! +100";bannerUntil=now+1500;}break;}}
+                while(ej.hasNext()){Enemy e=ej.next();if(dist(b.x,b.y,e.x,e.y)<e.r+5){hit=true;e.hp--;burst(b.x,b.y,cyan,3);if(e.hp<=0){ej.remove();kills++;score+=10+level*2;gems.add(new Gem(e.x,e.y));burst(e.x,e.y,e.boss?gold:pink,e.boss?32:14);if(e.boss){score+=100;hp=Math.min(3,hp+1);level++;banner="BOSS DOWN! +100  +1 LIFE";bannerUntil=now+1800;}}break;}}
                 if(hit||b.life<=0||b.x<0||b.x>w||b.y<0||b.y>h)bi.remove();
             }
             Iterator<Gem> gi=gems.iterator();
@@ -155,14 +162,14 @@ public class MainActivity extends Activity {
             else if(edge==2){x=rng.nextFloat()*w;y=65;}
             else{x=rng.nextFloat()*w;y=-20;}
             boolean boss=level%5==0 && kills>0 && kills%25==0 && rng.nextFloat()<.12f;
-            enemies.add(new Enemy(x,y,boss?25:12+rng.nextFloat()*5,(boss?48:48+level*5),boss?gold:pink,boss));
+            enemies.add(new Enemy(x,y,boss?29:12+rng.nextFloat()*5,(boss?35:48+level*5),boss?gold:pink,boss,boss?Math.min(18,5+level):1));
         }
 
         void drawWorld(Canvas c,int w,int h){
             c.save();if(shake>0)c.translate((rng.nextFloat()-.5f)*shake,(rng.nextFloat()-.5f)*shake);
             for(Gem g:gems){circle(c,g.x,g.y,g.r+5,Color.argb(45,52,239,222));Path d=new Path();d.moveTo(g.x,g.y-g.r);d.lineTo(g.x+g.r,g.y);d.lineTo(g.x,g.y+g.r);d.lineTo(g.x-g.r,g.y);d.close();fill(c,cyan);c.drawPath(d,p);}
             for(Bullet b:bullets){p.setShader(new LinearGradient(b.x,b.y,b.x-b.vx*.035f,b.y-b.vy*.035f,cyan,Color.TRANSPARENT,Shader.TileMode.CLAMP));c.drawCircle(b.x,b.y,4,p);p.setShader(null);}
-            for(Enemy e:enemies){circle(c,e.x,e.y,e.r+5,Color.argb(45,255,70,137));p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(e.boss?3:2);p.setColor(e.color);c.drawCircle(e.x,e.y,e.r,p);p.setStyle(Paint.Style.FILL);circle(c,e.x,e.y,e.r*.55f,e.color);circle(c,e.x-e.r*.18f,e.y-e.r*.18f,3,white);}
+            for(Enemy e:enemies){circle(c,e.x,e.y,e.r+5,Color.argb(45,255,70,137));p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(e.boss?3:2);p.setColor(e.color);c.drawCircle(e.x,e.y,e.r,p);p.setStyle(Paint.Style.FILL);circle(c,e.x,e.y,e.r*.55f,e.color);circle(c,e.x-e.r*.18f,e.y-e.r*.18f,3,white);if(e.boss){round(c,e.x-e.r,e.y-e.r-10,e.x+e.r,e.y-e.r-5,2,Color.rgb(65,28,50));round(c,e.x-e.r,e.y-e.r-10,e.x-e.r+2*e.r*(e.hp/(float)e.maxHp),e.y-e.r-5,2,gold);}}
             drawShip(c,px,py,playerR);
             c.restore();
         }
@@ -228,7 +235,7 @@ public class MainActivity extends Activity {
         }
         void updateJoy(float x,float y){float dx=x-joyBaseX,dy=y-joyBaseY;float len=(float)Math.hypot(dx,dy);if(len>1){joyX=dx/Math.max(35,len);joyY=dy/Math.max(35,len);}else{joyX=joyY=0;}}
         static class Star{float x,y,r;int a;Star(float x,float y,float r){this.x=x;this.y=y;this.r=r;a=45+(int)(Math.random()*125);}}
-        static class Enemy{float x,y,r,speed;int color;boolean boss;Enemy(float x,float y,float r,float speed,int color,boolean boss){this.x=x;this.y=y;this.r=r;this.speed=speed;this.color=color;this.boss=boss;}}
+        static class Enemy{float x,y,r,speed;int color,hp,maxHp;boolean boss;Enemy(float x,float y,float r,float speed,int color,boolean boss,int hp){this.x=x;this.y=y;this.r=r;this.speed=speed;this.color=color;this.boss=boss;this.hp=hp;this.maxHp=hp;}}
         static class Bullet{float x,y,vx,vy,life=1.6f;Bullet(float x,float y,float vx,float vy){this.x=x;this.y=y;this.vx=vx;this.vy=vy;}}
         static class Gem{float x,y,r=6;Gem(float x,float y){this.x=x;this.y=y;}}
         static class Particle{float x,y,vx,vy,life;int color;Particle(float x,float y,float vx,float vy,int color,float life){this.x=x;this.y=y;this.vx=vx;this.vy=vy;this.color=color;this.life=life;}}
