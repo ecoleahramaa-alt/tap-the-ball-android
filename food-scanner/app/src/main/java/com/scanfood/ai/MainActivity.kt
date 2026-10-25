@@ -45,7 +45,19 @@ class MainActivity : Activity() {
         }
     }
     private fun button(label: String, action: () -> Unit): Button =
-        Button(this).apply { text = label; isAllCaps = false; setTextColor(Color.WHITE); backgroundTintList = android.content.res.ColorStateList.valueOf(green); setOnClickListener { action() } }
+        Button(this).apply {
+            text = label; isAllCaps = false; textSize = 14f; setTextColor(Color.WHITE)
+            minHeight = dp(48); setPadding(dp(14), dp(9), dp(14), dp(9))
+            background = android.graphics.drawable.GradientDrawable().apply { setColor(green); cornerRadius = dp(14).toFloat() }
+            setOnClickListener { action() }
+        }
+    private fun styleInput(input: EditText): EditText = input.apply {
+        setTextColor(ink); setHintTextColor(Color.rgb(112, 130, 121)); textSize = 16f
+        setPadding(dp(14), dp(12), dp(14), dp(12))
+        background = android.graphics.drawable.GradientDrawable().apply {
+            setColor(Color.WHITE); cornerRadius = dp(14).toFloat(); setStroke(dp(1), Color.rgb(205, 224, 213))
+        }
+    }
     private fun card(): LinearLayout = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         setPadding(dp(16), dp(14), dp(16), dp(14))
@@ -96,12 +108,7 @@ class MainActivity : Activity() {
         banner.addView(button("📷  Scanner un code-barres", ::scan).apply { backgroundTintList = android.content.res.ColorStateList.valueOf(Color.rgb(20, 185, 105)) }, margin())
         root.addView(banner, margin())
         root.addView(text("Recherche rapide", 19f, ink, true), margin())
-        searchInput = EditText(this).apply {
-            hint = "Nom du produit, marque ou code-barres"
-            setSingleLine(true); inputType = InputType.TYPE_CLASS_TEXT
-            setPadding(dp(14), dp(12), dp(14), dp(12))
-            background = android.graphics.drawable.GradientDrawable().apply { setColor(Color.WHITE); cornerRadius=dp(15).toFloat(); setStroke(dp(1), Color.rgb(225,237,229)) }
-        }
+        searchInput = styleInput(EditText(this).apply { hint = "Nom du produit, marque ou code-barres"; setSingleLine(true); inputType = InputType.TYPE_CLASS_TEXT })
         root.addView(searchInput, margin())
         root.addView(button("🔎  Rechercher un produit", ::search), margin())
         val shortcuts = listOf(
@@ -148,21 +155,56 @@ class MainActivity : Activity() {
     }
     private fun showCompare() {
         resetContent()
-        root.addView(text("⚖️ Comparer des produits", 25f, green, true))
-        root.addView(text("Comparez les valeurs nutritionnelles pour 100 g ou 100 ml.", 14f, muted))
-        root.addView(text("Produit 1", 16f, ink, true), margin())
-        val a = EditText(this).apply { hint="Nom ou code-barres du premier produit"; setSingleLine(true); setText(searchInput.text.toString()) }
+        root.addView(text("⚖️ Comparer les produits", 25f, green, true))
+        root.addView(text("Entrez deux noms ou codes-barres. Les valeurs sont comparées pour 100 g/100 ml.", 14f, muted))
+        root.addView(text("Premier produit", 16f, ink, true), margin())
+        val a = styleInput(EditText(this).apply { hint="Nom ou code-barres du premier produit"; setSingleLine(true); setText(searchInput.text.toString()) })
         root.addView(a, margin())
-        root.addView(text("Produit 2", 16f, ink, true), margin())
-        val b = EditText(this).apply { hint="Nom ou code-barres du deuxième produit"; setSingleLine(true) }
+        root.addView(text("Deuxième produit", 16f, ink, true), margin())
+        val b = styleInput(EditText(this).apply { hint="Nom ou code-barres du deuxième produit"; setSingleLine(true) })
         root.addView(b, margin())
-        root.addView(button("Comparer les produits", {
-            val first=a.text.toString().trim(); val second=b.text.toString().trim()
-            if(first.isBlank() || second.isBlank()) Toast.makeText(this,"Saisissez les deux produits",Toast.LENGTH_SHORT).show()
-            else { prefs.edit().putString("compare_a",first).putString("compare_b",second).apply(); searchInput.setText(first); search(); Toast.makeText(this,"Produit 1 chargé. Comparez ensuite le second.",Toast.LENGTH_LONG).show() }
+        val results = LinearLayout(this).apply { orientation=LinearLayout.VERTICAL }
+        root.addView(button("Comparer les valeurs nutritionnelles", {
+            val q1=a.text.toString().trim(); val q2=b.text.toString().trim()
+            if(q1.isBlank() || q2.isBlank()) { Toast.makeText(this,"Remplissez les deux champs",Toast.LENGTH_SHORT).show() }
+            else {
+                results.removeAllViews()
+                results.addView(text("Recherche des deux fiches…",14f,muted))
+                executor.execute {
+                    try {
+                        val p1=lookupProduct(q1); val p2=lookupProduct(q2)
+                        runOnUiThread {
+                            results.removeAllViews()
+                            if(p1==null || p2==null) results.addView(text("Un des produits est introuvable. Essayez le code-barres exact ou un nom plus précis.",14f,muted))
+                            else {
+                                val n1=p1.optJSONObject("nutriments") ?: JSONObject()
+                                val n2=p2.optJSONObject("nutriments") ?: JSONObject()
+                                val table=card()
+                                table.addView(text(p1.optString("product_name","Produit 1")+"  VS  "+p2.optString("product_name","Produit 2"),18f,green,true))
+                                table.addView(text("Comparaison pour 100 g / 100 ml",12f,muted))
+                                val metrics=listOf(Triple("energy-kcal_100g","Calories","kcal"),Triple("sugars_100g","Sucres","g"),Triple("salt_100g","Sel","g"),Triple("saturated-fat_100g","Graisses saturées","g"),Triple("fiber_100g","Fibres","g"),Triple("proteins_100g","Protéines","g"))
+                                metrics.forEach { m ->
+                                    val v1=n1.optDouble(m.first,Double.NaN); val v2=n2.optDouble(m.first,Double.NaN)
+                                    val line=when { v1.isNaN() || v2.isNaN() -> "—"; else -> String.format(java.util.Locale.US,"%.1f",v1)+" "+m.third+"     |     "+String.format(java.util.Locale.US,"%.1f",v2)+" "+m.third }
+                                    table.addView(text(m.second+"\n"+line,14f,ink))
+                                }
+                                table.addView(text("Les valeurs manquantes ne sont pas estimées. Une valeur plus basse n'est pas toujours meilleure (par exemple les protéines ou les fibres).",12f,muted))
+                                results.addView(table,margin())
+                            }
+                        }
+                    } catch(e:Exception) { runOnUiThread { results.removeAllViews(); results.addView(text("Erreur de connexion. Vérifiez Internet puis réessayez.",14f,muted)) } }
+                }
+            }
         }), margin())
-        root.addView(text("Conseil : comparez surtout sucres, sel, graisses saturées, fibres et protéines. Une comparaison complète dépend des données disponibles.", 13f, muted), margin())
-        resultBox = LinearLayout(this).apply { orientation=LinearLayout.VERTICAL }; root.addView(resultBox)
+        root.addView(results, margin())
+    }
+    private fun lookupProduct(query: String): JSONObject? {
+        val isBarcode=query.matches(Regex("\\d{8,14}"))
+        val endpoint=if(isBarcode) "https://world.openfoodfacts.org/api/v2/product/${URLEncoder.encode(query,"UTF-8")}.json" else "https://world.openfoodfacts.org/cgi/search.pl?search_terms=${URLEncoder.encode(query,"UTF-8")}&search_simple=1&action=process&json=1&page_size=1"
+        val conn=(URL(endpoint).openConnection() as HttpURLConnection).apply { connectTimeout=12000; readTimeout=15000; setRequestProperty("User-Agent","ScanFoodAI/1.1 (Android nutrition app)") }
+        val body=conn.inputStream.bufferedReader().use { it.readText() }; conn.disconnect()
+        val json=JSONObject(body)
+        return if(isBarcode) { if(json.optInt("status")==1) json.optJSONObject("product") else null } else json.optJSONArray("products")?.optJSONObject(0)
     }
     private fun showGoals() {
         resetContent()
@@ -185,7 +227,7 @@ class MainActivity : Activity() {
         resetContent()
         root.addView(text("🛒 Liste de courses", 26f, green, true))
         root.addView(text("Préparez votre prochaine visite au magasin.", 14f, muted))
-        val input=EditText(this).apply { hint="Ajouter un aliment"; setSingleLine(true) }
+        val input=styleInput(EditText(this).apply { hint="Ajouter un aliment"; setSingleLine(true) })
         root.addView(input, margin())
         val listBox=LinearLayout(this).apply { orientation=LinearLayout.VERTICAL }
         fun renderList() {
