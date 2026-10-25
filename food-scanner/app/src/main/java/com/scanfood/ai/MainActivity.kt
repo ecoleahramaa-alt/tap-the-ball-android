@@ -37,11 +37,27 @@ class MainActivity : Activity() {
     }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+    private fun currentLanguage(): String = prefs.getString("language_code", "fr") ?: "fr"
+    private val translations = mapOf(
+        "Accueil" to mapOf("ar" to "الرئيسية", "en" to "Home", "es" to "Inicio", "de" to "Start", "it" to "Home", "pt" to "Início", "nl" to "Home"),
+        "Scanner" to mapOf("ar" to "مسح", "en" to "Scanner", "es" to "Escanear", "de" to "Scannen", "it" to "Scansiona", "pt" to "Ler código", "nl" to "Scannen"),
+        "Historique" to mapOf("ar" to "السجل", "en" to "History", "es" to "Historial", "de" to "Verlauf", "it" to "Cronologia", "pt" to "Histórico", "nl" to "Geschiedenis"),
+        "Favoris" to mapOf("ar" to "المفضلة", "en" to "Favorites", "es" to "Favoritos", "de" to "Favoriten", "it" to "Preferiti", "pt" to "Favoritos", "nl" to "Favorieten"),
+        "Plus" to mapOf("ar" to "المزيد", "en" to "More", "es" to "Más", "de" to "Mehr", "it" to "Altro", "pt" to "Mais", "nl" to "Meer"),
+        "Commencer  →" to mapOf("ar" to "ابدأ ←", "en" to "Get started →", "es" to "Comenzar →", "de" to "Los geht's →", "it" to "Inizia →", "pt" to "Começar →", "nl" to "Start →"),
+        "Recherche rapide" to mapOf("ar" to "بحث سريع", "en" to "Quick search", "es" to "Búsqueda rápida", "de" to "Schnellsuche", "it" to "Ricerca rapida", "pt" to "Pesquisa rápida", "nl" to "Snel zoeken"),
+        "Comparer" to mapOf("ar" to "مقارنة", "en" to "Compare", "es" to "Comparar", "de" to "Vergleichen", "it" to "Confronta", "pt" to "Comparar", "nl" to "Vergelijken"),
+        "Mes objectifs" to mapOf("ar" to "أهدافي", "en" to "My goals", "es" to "Mis objetivos", "de" to "Meine Ziele", "it" to "I miei obiettivi", "pt" to "Meus objetivos", "nl" to "Mijn doelen"),
+        "Liste de courses" to mapOf("ar" to "قائمة التسوق", "en" to "Shopping list", "es" to "Lista de compras", "de" to "Einkaufsliste", "it" to "Lista della spesa", "pt" to "Lista de compras", "nl" to "Boodschappenlijst"),
+        "Paramètres" to mapOf("ar" to "الإعدادات", "en" to "Settings", "es" to "Ajustes", "de" to "Einstellungen", "it" to "Impostazioni", "pt" to "Definições", "nl" to "Instellingen")
+    )
+    private fun tr(value: String): String = translations[value]?.get(currentLanguage()) ?: value
     private fun text(value: String, size: Float, color: Int = ink, bold: Boolean = false): TextView {
         return TextView(this).apply {
-            text = value; textSize = size; setTextColor(color)
+            text = tr(value); textSize = size; setTextColor(color)
             if (bold) setTypeface(typeface, Typeface.BOLD)
             setPadding(dp(2), dp(3), dp(2), dp(3))
+            if (currentLanguage() == "ar") { textDirection = View.TEXT_DIRECTION_RTL; gravity = Gravity.RIGHT }
         }
     }
     private fun button(label: String, action: () -> Unit): Button =
@@ -284,8 +300,20 @@ class MainActivity : Activity() {
         root.addView(text("Personnalisez votre expérience ScanFood AI.", 14f, muted))
         root.addView(text("Langue", 16f, ink, true), margin())
         val language=Spinner(this)
-        language.adapter=ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, listOf("Français","العربية","English","Español"))
-        val savedLang=prefs.getInt("language",0); language.setSelection(savedLang.coerceIn(0,3))
+        val languageNames = listOf("Français","العربية","English","Español","Deutsch","Italiano","Português","Nederlands")
+        val languageCodes = listOf("fr","ar","en","es","de","it","pt","nl")
+        language.adapter=ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, languageNames)
+        language.setSelection(languageCodes.indexOf(currentLanguage()).coerceAtLeast(0))
+        language.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val code = languageCodes[position]
+                if (code != currentLanguage()) {
+                    prefs.edit().putString("language_code", code).putInt("language", position).apply()
+                    root.post { showSettings() }
+                }
+            }
+        }
         root.addView(language, margin())
         root.addView(text("Préférences alimentaires", 16f, ink, true), margin())
         val prefsList=listOf("Éviter le sucre ajouté","Réduire le sel","Végétarien","Sans gluten","Sans lactose")
