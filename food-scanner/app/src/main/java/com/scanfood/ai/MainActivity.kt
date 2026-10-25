@@ -25,6 +25,7 @@ class MainActivity : Activity() {
     private val ink = Color.rgb(23, 42, 36)
     private val muted = Color.rgb(99, 116, 108)
     private val pale = Color.rgb(239, 248, 243)
+    private val prefs by lazy { getSharedPreferences("scanfood_local", MODE_PRIVATE) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -79,6 +80,10 @@ class MainActivity : Activity() {
         root.addView(searchInput, margin())
         root.addView(button("🔎 Rechercher", ::search), margin())
         root.addView(button("📷 Scanner un code-barres", ::scan), margin())
+        val quick = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+        quick.addView(button("❤️ Favoris", ::showFavorites), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(5) })
+        quick.addView(button("🕘 Historique", ::showHistory), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(5) })
+        root.addView(quick, margin())
         status = text("Prêt à rechercher un aliment. Internet nécessaire pour récupérer les données.", 14f, muted)
         root.addView(status, margin())
         root.addView(text("Que vérifie l’application ?", 20f, ink, true), margin())
@@ -164,11 +169,46 @@ class MainActivity : Activity() {
             }
         }
     }
+    private fun savedList(key: String): org.json.JSONArray {
+        return try { org.json.JSONArray(prefs.getString(key, "[]")) } catch (_: Exception) { org.json.JSONArray() }
+    }
+    private fun addSaved(key: String, product: JSONObject) {
+        val list = savedList(key)
+        val code = product.optString("code")
+        val name = product.optString("product_name", "Produit")
+        for (i in 0 until list.length()) {
+            val item = list.optJSONObject(i) ?: continue
+            if ((code.isNotBlank() && item.optString("code") == code) || (code.isBlank() && item.optString("product_name") == name)) { list.remove(i); break }
+        }
+        val item = JSONObject()
+        item.put("code", code); item.put("product_name", name); item.put("brands", product.optString("brands"))
+        item.put("nutriscore_grade", product.optString("nutriscore_grade", product.optString("nutrition_grades")))
+        item.put("ingredients_text", product.optString("ingredients_text")); item.put("allergens", product.optString("allergens"))
+        item.put("nutriments", product.optJSONObject("nutriments") ?: JSONObject())
+        list.put(0, item); while (list.length() > 100) list.remove(list.length() - 1)
+        prefs.edit().putString(key, list.toString()).apply()
+    }
+    private fun showFavorites() = showSaved("favorites", "❤️ المنتوجات المفضلة")
+    private fun showHistory() = showSaved("history", "🕘 آخر المنتوجات")
+    private fun showSaved(key: String, title: String) {
+        resultBox.removeAllViews(); resultBox.addView(text(title, 20f, green, true))
+        val list = savedList(key)
+        if (list.length() == 0) { showMessage("مازال ما كاين حتى منتوج محفوظ هنا."); return }
+        for (i in 0 until list.length()) {
+            val item = list.optJSONObject(i) ?: continue
+            val c = card(); c.addView(text(item.optString("product_name", "Produit"), 18f, ink, true))
+            c.addView(text(item.optString("brands"), 13f, muted))
+            c.addView(text("Nutri-Score : " + item.optString("nutri-score_grade", item.optString("nutriscore_grade", "غير متوفر")), 14f, green, true))
+            c.addView(button("عرض التفاصيل", { renderProduct(item, item.optString("code")) }), margin())
+            resultBox.addView(c, margin())
+        }
+    }
     private fun showMessage(message: String) {
         resultBox.removeAllViews()
         val c = card(); c.addView(text(message, 14f, muted)); resultBox.addView(c, margin())
     }
     private fun renderProduct(p: JSONObject, fallback: String) {
+        addSaved("history", p)
         resultBox.removeAllViews()
         val name = p.optString("product_name").ifBlank { "Produit sans nom renseigné" }
         val brand = p.optString("brands").ifBlank { "Marque non renseignée" }
@@ -203,6 +243,7 @@ class MainActivity : Activity() {
         val categories = p.optString("categories").ifBlank { "Catégorie non renseignée" }
         c.addView(text("Catégories : $categories", 13f, muted))
         c.addView(text("Code : ${p.optString("code", fallback)}", 12f, muted))
+        c.addView(button("❤️ Ajouter / retirer des favoris", { addSaved("favorites", p); Toast.makeText(this, "Favoris mis à jour", Toast.LENGTH_SHORT).show() }), margin())
         resultBox.addView(c, margin())
     }
     override fun onDestroy() { super.onDestroy(); executor.shutdownNow() }
