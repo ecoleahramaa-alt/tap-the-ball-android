@@ -18,6 +18,8 @@ import java.util.concurrent.Executors
 class MainActivity : Activity() {
     private val executor = Executors.newSingleThreadExecutor()
     private lateinit var root: LinearLayout
+    private lateinit var shell: LinearLayout
+    private lateinit var contentScroll: ScrollView
     private lateinit var resultBox: LinearLayout
     private lateinit var status: TextView
     private lateinit var searchInput: EditText
@@ -53,54 +55,172 @@ class MainActivity : Activity() {
         }
     }
     private fun buildHome() {
-        root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL; setPadding(dp(18), dp(12), dp(18), dp(24))
-            setBackgroundColor(pale)
+        shell = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(pale) }
+        contentScroll = ScrollView(this)
+        root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(18), dp(12), dp(18), dp(24)); setBackgroundColor(pale) }
+        contentScroll.addView(root)
+        shell.addView(contentScroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        val nav = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER
+            setPadding(dp(4), dp(5), dp(4), dp(5)); setBackgroundColor(Color.WHITE)
+            elevation = dp(10).toFloat()
         }
-        val scroll = ScrollView(this)
-        scroll.addView(root)
-        setContentView(scroll)
-        root.addView(text("🥑 ScanFood AI", 29f, green, true))
-        root.addView(text("Scan. Comprends. Choisis mieux.", 15f, muted))
-        val banner = card()
-        banner.setBackgroundColor(Color.rgb(224, 245, 233))
-        banner.addView(text("Mange plus malin 🌿", 22f, green, true))
-        banner.addView(text("Scanne le code-barres d’un aliment pour consulter ses informations nutritionnelles, ingrédients et allergènes.", 15f))
+        listOf(
+            Triple("⌂", "Accueil") { showHome() },
+            Triple("▣", "Scanner") { scan() },
+            Triple("◷", "Historique") { showHistory() },
+            Triple("♡", "Favoris") { showFavorites() },
+            Triple("•••", "Plus") { showMore() }
+        ).forEach { item ->
+            val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER; setPadding(dp(3), dp(4), dp(3), dp(4)) }
+            col.addView(text(item.first, 21f, green, true).apply { gravity = Gravity.CENTER })
+            col.addView(text(item.second, 10f, muted, true).apply { gravity = Gravity.CENTER })
+            col.setOnClickListener { item.third.invoke() }
+            nav.addView(col, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        }
+        shell.addView(nav, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        setContentView(shell)
+        showHome()
+    }
+    private fun resetContent() {
+        root.removeAllViews()
+        contentScroll.scrollTo(0, 0)
+    }
+    private fun showHome() {
+        resetContent()
+        root.addView(text("🥑 ScanFood AI     ⚙", 27f, green, true))
+        root.addView(text("Scannez • Découvrez • Mangez mieux", 14f, muted))
+        val banner = card().apply { setBackgroundColor(Color.rgb(8, 127, 91)); background = android.graphics.drawable.GradientDrawable().apply { setColor(Color.rgb(8,127,91)); cornerRadius=dp(22).toFloat() } }
+        banner.addView(text("Mangez plus malin 🌿", 23f, Color.WHITE, true))
+        banner.addView(text("Découvrez ce que contient votre alimentation.", 14f, Color.WHITE))
+        banner.addView(button("📷  Scanner un code-barres", ::scan).apply { backgroundTintList = android.content.res.ColorStateList.valueOf(Color.rgb(20, 185, 105)) }, margin())
         root.addView(banner, margin())
-        root.addView(text("Rechercher un produit", 19f, ink, true))
+        root.addView(text("Recherche rapide", 19f, ink, true), margin())
         searchInput = EditText(this).apply {
-            hint = "Nom du produit ou code-barres (EAN)"
-            setSingleLine(true)
-            inputType = InputType.TYPE_CLASS_TEXT
-            setPadding(dp(14), dp(10), dp(14), dp(10))
-            background = android.graphics.drawable.GradientDrawable().apply {
-                setColor(Color.WHITE); cornerRadius = dp(14).toFloat(); setStroke(dp(1), Color.LTGRAY)
-            }
+            hint = "Nom du produit, marque ou code-barres"
+            setSingleLine(true); inputType = InputType.TYPE_CLASS_TEXT
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+            background = android.graphics.drawable.GradientDrawable().apply { setColor(Color.WHITE); cornerRadius=dp(15).toFloat(); setStroke(dp(1), Color.rgb(225,237,229)) }
         }
         root.addView(searchInput, margin())
-        root.addView(button("🔎 Rechercher", ::search), margin())
-        root.addView(button("📷 Scanner un code-barres", ::scan), margin())
-        val quick = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
-        quick.addView(button("❤️ Favoris", ::showFavorites), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(5) })
-        quick.addView(button("🕘 Historique", ::showHistory), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(5) })
-        root.addView(quick, margin())
-        status = text("Prêt à rechercher un aliment. Internet nécessaire pour récupérer les données.", 14f, muted)
+        root.addView(button("🔎  Rechercher un produit", ::search), margin())
+        val shortcuts = listOf(
+            Triple("⚖️", "Comparer", { showCompare() }),
+            Triple("🎯", "Mes objectifs", { showGoals() }),
+            Triple("🛒", "Liste de courses", { showShopping() }),
+            Triple("⚙️", "Paramètres", { showSettings() })
+        )
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        shortcuts.forEach { item ->
+            val tile = card().apply { gravity = Gravity.CENTER; setPadding(dp(6),dp(12),dp(6),dp(12)) }
+            tile.addView(text(item.first, 24f, green, true).apply { gravity = Gravity.CENTER })
+            tile.addView(text(item.second, 11f, ink, true).apply { gravity = Gravity.CENTER })
+            tile.setOnClickListener { item.third.invoke() }
+            row.addView(tile, LinearLayout.LayoutParams(0, dp(86), 1f).apply { marginEnd=dp(5) })
+        }
+        root.addView(row, margin())
+        root.addView(text("Catégories populaires", 19f, ink, true), margin())
+        val categories = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        listOf("🥛 Laitiers", "🍎 Fruits", "🥣 Céréales", "🥤 Boissons").forEach { cat ->
+            categories.addView(button(cat, { searchInput.setText(cat.substringAfter(" ").trim()); search() }), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd=dp(4) })
+        }
+        root.addView(categories, margin())
+        status = text("Prêt à scanner. Internet requis pour les fiches en ligne.", 13f, muted)
         root.addView(status, margin())
-        root.addView(text("Que vérifie l’application ?", 20f, ink, true), margin())
-        val features = card()
-        listOf(
-            "🥦 Nutri-Score et nutrition (si disponibles)",
-            "🍬 Sucres, graisses, sel, calories et protéines",
-            "🧾 Liste des ingrédients et additifs renseignés",
-            "⚠️ Allergènes déclarés sur la fiche produit",
-            "🌍 Données de produits de nombreux pays"
-        ).forEach { features.addView(text(it, 15f)) }
-        root.addView(features, margin())
-        root.addView(text("Résultat", 20f, ink, true), margin())
+        root.addView(text("Vos derniers produits", 19f, ink, true), margin())
         resultBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         root.addView(resultBox)
-        showMessage("Les résultats dépendent des informations présentes dans la base de données.")
-        root.addView(text("Important : le score est indicatif. Il ne remplace pas un avis médical et un produit ne peut pas être évalué correctement si ses données sont incomplètes.", 12f, muted), margin())
+        showSavedInto("history", resultBox)
+        root.addView(text("Les informations et évaluations dépendent des données disponibles pour chaque produit. Elles ne remplacent pas un avis médical.", 12f, muted), margin())
+    }
+    private fun showMore() {
+        resetContent()
+        root.addView(text("Plus de ScanFood AI", 26f, green, true))
+        root.addView(text("Tous vos outils au même endroit", 14f, muted))
+        listOf(
+            "⚖️ Comparer des produits" to { showCompare() },
+            "🎯 Objectifs nutritionnels" to { showGoals() },
+            "🛒 Liste de courses" to { showShopping() },
+            "❤️ Favoris" to { showFavorites() },
+            "🕘 Historique" to { showHistory() },
+            "⚙️ Paramètres et préférences" to { showSettings() }
+        ).forEach { item -> root.addView(button(item.first, item.second), margin()) }
+    }
+    private fun showCompare() {
+        resetContent()
+        root.addView(text("⚖️ Comparer des produits", 25f, green, true))
+        root.addView(text("Comparez les valeurs nutritionnelles pour 100 g ou 100 ml.", 14f, muted))
+        root.addView(text("Produit 1", 16f, ink, true), margin())
+        val a = EditText(this).apply { hint="Nom ou code-barres du premier produit"; setSingleLine(true); setText(searchInput.text.toString()) }
+        root.addView(a, margin())
+        root.addView(text("Produit 2", 16f, ink, true), margin())
+        val b = EditText(this).apply { hint="Nom ou code-barres du deuxième produit"; setSingleLine(true) }
+        root.addView(b, margin())
+        root.addView(button("Comparer les produits", {
+            val first=a.text.toString().trim(); val second=b.text.toString().trim()
+            if(first.isBlank() || second.isBlank()) Toast.makeText(this,"Saisissez les deux produits",Toast.LENGTH_SHORT).show()
+            else { prefs.edit().putString("compare_a",first).putString("compare_b",second).apply(); searchInput.setText(first); search(); Toast.makeText(this,"Produit 1 chargé. Comparez ensuite le second.",Toast.LENGTH_LONG).show() }
+        }), margin())
+        root.addView(text("Conseil : comparez surtout sucres, sel, graisses saturées, fibres et protéines. Une comparaison complète dépend des données disponibles.", 13f, muted), margin())
+        resultBox = LinearLayout(this).apply { orientation=LinearLayout.VERTICAL }; root.addView(resultBox)
+    }
+    private fun showGoals() {
+        resetContent()
+        root.addView(text("🎯 Mes objectifs", 26f, green, true))
+        root.addView(text("Définissez des repères personnels. Les objectifs sont enregistrés sur ce téléphone.", 14f, muted))
+        val fields = listOf("Calories quotidiennes (kcal)" to "goal_calories", "Protéines (g)" to "goal_protein", "Sucres (g)" to "goal_sugar", "Sel (g)" to "goal_salt")
+        val inputs = mutableListOf<Pair<String,EditText>>()
+        fields.forEach { (label,key) ->
+            root.addView(text(label, 15f, ink, true), margin())
+            val input=EditText(this).apply { hint="Ex. 2000"; inputType=InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL; setText(prefs.getString(key,"")) }
+            inputs.add(key to input); root.addView(input, margin())
+        }
+        root.addView(button("💾 Enregistrer mes objectifs", {
+            inputs.forEach { (key,input) -> prefs.edit().putString(key,input.text.toString()).apply() }
+            Toast.makeText(this,"Objectifs enregistrés",Toast.LENGTH_SHORT).show()
+        }), margin())
+        root.addView(text("Ces repères sont informatifs et ne constituent pas une prescription médicale.", 12f, muted), margin())
+    }
+    private fun showShopping() {
+        resetContent()
+        root.addView(text("🛒 Liste de courses", 26f, green, true))
+        root.addView(text("Préparez votre prochaine visite au magasin.", 14f, muted))
+        val input=EditText(this).apply { hint="Ajouter un aliment"; setSingleLine(true) }
+        root.addView(input, margin())
+        val listBox=LinearLayout(this).apply { orientation=LinearLayout.VERTICAL }
+        fun renderList() {
+            listBox.removeAllViews()
+            val list=savedList("shopping")
+            for(i in 0 until list.length()) {
+                val item=list.optJSONObject(i) ?: continue
+                val cb=CheckBox(this).apply { text=item.optString("name"); setTextColor(ink) }
+                listBox.addView(cb)
+            }
+            if(list.length()==0) listBox.addView(text("Votre liste est vide pour le moment.",14f,muted))
+        }
+        root.addView(button("＋ Ajouter à la liste", {
+            val name=input.text.toString().trim()
+            if(name.isNotBlank()) { val list=savedList("shopping"); list.put(JSONObject().put("name",name)); prefs.edit().putString("shopping",list.toString()).apply(); input.text.clear(); renderList() }
+        }), margin())
+        root.addView(text("À acheter", 18f, ink, true), margin()); root.addView(listBox, margin())
+        root.addView(button("Effacer la liste", { prefs.edit().putString("shopping","[]").apply(); renderList() }), margin())
+        renderList()
+    }
+    private fun showSettings() {
+        resetContent()
+        root.addView(text("⚙️ Paramètres", 26f, green, true))
+        root.addView(text("Personnalisez votre expérience ScanFood AI.", 14f, muted))
+        root.addView(text("Langue", 16f, ink, true), margin())
+        val language=Spinner(this)
+        language.adapter=ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, listOf("Français","العربية","English","Español"))
+        val savedLang=prefs.getInt("language",0); language.setSelection(savedLang.coerceIn(0,3))
+        root.addView(language, margin())
+        root.addView(text("Préférences alimentaires", 16f, ink, true), margin())
+        val prefsList=listOf("Éviter le sucre ajouté","Réduire le sel","Végétarien","Sans gluten","Sans lactose")
+        prefsList.forEach { label -> val cb=CheckBox(this).apply { text=label; setTextColor(ink); isChecked=prefs.getBoolean("pref_"+label,false); setOnCheckedChangeListener { _,checked -> prefs.edit().putBoolean("pref_"+label,checked).apply() } }; root.addView(cb) }
+        root.addView(button("💾 Enregistrer les paramètres", { prefs.edit().putInt("language",language.selectedItemPosition).apply(); Toast.makeText(this,"Paramètres enregistrés",Toast.LENGTH_SHORT).show() }), margin())
+        root.addView(text("À propos", 18f, ink, true), margin())
+        root.addView(text("ScanFood AI utilise les informations disponibles dans Open Food Facts. Les fiches peuvent être incomplètes ou inexactes.", 13f, muted))
     }
     private fun margin(): LinearLayout.LayoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(10) }
     private fun scan() {
