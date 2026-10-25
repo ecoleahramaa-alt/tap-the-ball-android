@@ -62,7 +62,7 @@ class MainActivity : Activity() {
     }
     private fun button(label: String, action: () -> Unit): Button =
         Button(this).apply {
-            text = label; isAllCaps = false; textSize = 14f; setTextColor(Color.WHITE)
+            text = tr(label); isAllCaps = false; textSize = 14f; setTextColor(Color.WHITE)
             minHeight = dp(48); setPadding(dp(14), dp(9), dp(14), dp(9))
             background = android.graphics.drawable.GradientDrawable().apply { setColor(green); cornerRadius = dp(14).toFloat() }
             setOnClickListener { action() }
@@ -115,7 +115,7 @@ class MainActivity : Activity() {
     private fun buildHome() {
         shell = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(pale) }
         contentScroll = ScrollView(this)
-        root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(18), dp(12), dp(18), dp(24)); setBackgroundColor(pale) }
+        root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(18), dp(12), dp(18), dp(24)); setBackgroundColor(pale); layoutDirection = if (currentLanguage() == "ar") View.LAYOUT_DIRECTION_RTL else View.LAYOUT_DIRECTION_LTR }
         contentScroll.addView(root)
         shell.addView(contentScroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         val nav = LinearLayout(this).apply {
