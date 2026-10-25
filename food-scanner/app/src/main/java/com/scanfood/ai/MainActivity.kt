@@ -391,6 +391,24 @@ class MainActivity : Activity() {
         val allergens = p.optString("allergens").ifBlank { "Aucun renseignement disponible sur les allergènes." }
         val nutriments = p.optJSONObject("nutriments")
         val c = card()
+        val imageUrl = p.optString("image_front_url").ifBlank { p.optString("image_url") }
+        if (imageUrl.startsWith("https://")) {
+            val productImage = ImageView(this).apply {
+                layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(180))
+                scaleType = ImageView.ScaleType.FIT_CENTER
+                setBackgroundColor(Color.WHITE)
+                contentDescription = "Image du produit"
+            }
+            c.addView(productImage, margin())
+            executor.execute {
+                try {
+                    val connection = (URL(imageUrl).openConnection() as HttpURLConnection).apply { connectTimeout=8000; readTimeout=10000 }
+                    val bitmap = connection.inputStream.use { android.graphics.BitmapFactory.decodeStream(it) }
+                    connection.disconnect()
+                    if (bitmap != null) runOnUiThread { productImage.setImageBitmap(bitmap) }
+                } catch (_: Exception) { }
+            }
+        }
         c.addView(text(name, 22f, ink, true))
         c.addView(text("Marque : $brand", 15f, muted))
         if (nutri.isNotBlank()) {
