@@ -69,7 +69,7 @@ class MainActivity : Activity() {
         root.addView(text("Rechercher un produit", 19f, ink, true))
         searchInput = EditText(this).apply {
             hint = "Nom du produit ou code-barres (EAN)"
-            singleLine = true
+            setSingleLine(true)
             inputType = InputType.TYPE_CLASS_TEXT
             setPadding(dp(14), dp(10), dp(14), dp(10))
             background = android.graphics.drawable.GradientDrawable().apply {
@@ -100,21 +100,27 @@ class MainActivity : Activity() {
     private fun margin(): LinearLayout.LayoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(10) }
     private fun scan() {
         try {
-            val intent = com.journeyapps.barcodescanner.ScanOptions().apply {
-                setPrompt("Place le code-barres dans le cadre")
-                setBeepEnabled(false); setOrientationLocked(false)
-                setDesiredBarcodeFormats(com.journeyapps.barcodescanner.ScanOptions.PRODUCT_CODE, com.journeyapps.barcodescanner.ScanOptions.ONE_D_CODE_TYPES)
-            }
-            scannerLauncher.launch(intent)
+            com.google.zxing.integration.android.IntentIntegrator(this)
+                .setPrompt("Place le code-barres dans le cadre")
+                .setBeepEnabled(false)
+                .setOrientationLocked(false)
+                .setDesiredBarcodeFormats(com.google.zxing.integration.android.IntentIntegrator.ALL_CODE_TYPES)
+                .initiateScan()
         } catch (e: Exception) {
             status.text = "Impossible d’ouvrir le scanner : ${e.message ?: "erreur"}"
         }
     }
-    private val scannerLauncher = registerForActivityResult(com.journeyapps.barcodescanner.ScanContract()) { result ->
-        val code = result.contents
-        if (code.isNullOrBlank()) status.text = "Scan annulé." else {
-            searchInput.setText(code)
-            search()
+
+    @Deprecated("Legacy scanner result callback")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: android.content.Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        val result = com.google.zxing.integration.android.IntentIntegrator.parseActivityResult(requestCode, resultCode, data)
+        if (result != null) {
+            val code = result.contents
+            if (code.isNullOrBlank()) status.text = "Scan annulé." else {
+                searchInput.setText(code)
+                search()
+            }
         }
     }
     private fun search() {
