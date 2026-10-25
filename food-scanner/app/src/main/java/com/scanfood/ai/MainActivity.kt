@@ -33,7 +33,7 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         window.statusBarColor = Color.rgb(6, 78, 59)
         window.navigationBarColor = Color.rgb(7, 27, 22)
-        buildHome()
+        showSplash()
     }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
@@ -66,6 +66,36 @@ class MainActivity : Activity() {
             setStroke(dp(1), Color.rgb(225, 237, 229))
         }
     }
+    private fun showSplash() {
+        val page = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(dp(28), dp(28), dp(28), dp(28))
+            background = android.graphics.drawable.GradientDrawable(
+                android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
+                intArrayOf(Color.rgb(5,65,48), Color.rgb(8,127,91), Color.rgb(31,174,112))
+            )
+        }
+        val logo = ImageView(this).apply {
+            setImageResource(com.scanfoodai.nutrition.R.drawable.ic_scanfood_logo)
+            layoutParams = LinearLayout.LayoutParams(dp(126), dp(126)).apply { bottomMargin = dp(24) }
+            contentDescription = "ScanFood AI logo"
+        }
+        page.addView(logo)
+        page.addView(text("ScanFood AI", 34f, Color.WHITE, true).apply { gravity = Gravity.CENTER })
+        page.addView(text("FOOD SCANNER • NUTRITION GUIDE", 12f, Color.rgb(222,255,231), true).apply { gravity = Gravity.CENTER; letterSpacing = 0.08f })
+        page.addView(text("Comprenez ce que vous mangez.\nFaites des choix éclairés, produit après produit.", 17f, Color.WHITE).apply { gravity = Gravity.CENTER; setLineSpacing(dp(5).toFloat(), 1f) })
+        val features = card()
+        listOf("▦  Scanner les codes-barres", "◉  Lire nutrition et ingrédients", "♡  Garder favoris et historique").forEach { features.addView(text(it,15f,ink,true)) }
+        page.addView(features)
+        val start = button("Commencer  →") { buildHome() }.apply {
+            textSize = 17f; setTextColor(green)
+            background = android.graphics.drawable.GradientDrawable().apply { setColor(Color.WHITE); cornerRadius=dp(18).toFloat() }
+        }
+        page.addView(start, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(58)).apply { topMargin=dp(22) })
+        setContentView(page)
+    }
+
     private fun buildHome() {
         shell = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(pale) }
         contentScroll = ScrollView(this)
