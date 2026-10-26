@@ -83,7 +83,10 @@ class MainActivity : Activity() {
         Button(this).apply {
             text = tr(label); isAllCaps = false; textSize = 14f; setTextColor(Color.WHITE)
             minHeight = dp(48); setPadding(dp(14), dp(9), dp(14), dp(9))
+            maxLines = 2
+            gravity = Gravity.CENTER
             background = android.graphics.drawable.GradientDrawable().apply { setColor(green); cornerRadius = dp(14).toFloat() }
+            elevation = dp(1).toFloat()
             setOnClickListener { action() }
         }
     private fun styleInput(input: EditText): EditText = input.apply {
@@ -230,24 +233,106 @@ class MainActivity : Activity() {
     }
     private fun showHome() {
         resetContent()
-        root.addView(text("🥑 ScanFood AI", 27f, green, true))
-        root.addView(text("Scannez • Découvrez • Mangez mieux", 14f, muted))
-        val banner = card().apply { setBackgroundColor(Color.rgb(8, 127, 91)); background = android.graphics.drawable.GradientDrawable().apply { setColor(Color.rgb(8,127,91)); cornerRadius=dp(22).toFloat() } }
-        banner.addView(text("Mangez plus malin 🌿", 23f, Color.WHITE, true))
-        banner.addView(text("Découvrez ce que contient votre alimentation.", 14f, Color.WHITE))
-        banner.addView(button("📷  Scanner un code-barres", ::scan).apply { backgroundTintList = android.content.res.ColorStateList.valueOf(Color.rgb(20, 185, 105)) }, margin())
-        root.addView(banner, margin())
-        root.addView(text("Recherche rapide", 19f, ink, true), margin())
-        searchInput = styleInput(EditText(this).apply { hint = "Nom du produit, marque ou code-barres"; setSingleLine(true); inputType = InputType.TYPE_CLASS_TEXT })
-        root.addView(searchInput, margin())
-        root.addView(button("🔎  Rechercher un produit", ::search), margin())
+
+        // Dashboard header
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        val brand = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f) }
+        brand.addView(text("🥑 ScanFood AI", 26f, green, true))
+        brand.addView(text("Scannez • Comprenez • Choisissez mieux", 13f, muted))
+        header.addView(brand)
+        header.addView(button("⚙") { showSettings() }.apply {
+            textSize = 18f
+            minWidth = dp(48)
+            setPadding(dp(8), dp(8), dp(8), dp(8))
+            contentDescription = "Paramètres et langue"
+        })
+        root.addView(header, margin())
+
+        // Main call-to-action card
+        val hero = card().apply {
+            setPadding(dp(20), dp(20), dp(20), dp(20))
+            background = android.graphics.drawable.GradientDrawable(
+                android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
+                intArrayOf(Color.rgb(5, 89, 63), Color.rgb(8, 127, 91), Color.rgb(25, 160, 105))
+            ).apply { cornerRadius = dp(24).toFloat() }
+            elevation = dp(3).toFloat()
+        }
+        hero.addView(text("Mangez plus malin 🌿", 24f, Color.WHITE, true))
+        hero.addView(text("Scannez un code-barres pour consulter les informations nutritionnelles, les ingrédients et les allergènes.", 14f, Color.WHITE).apply {
+            setLineSpacing(dp(3).toFloat(), 1.05f)
+        }, margin())
+        hero.addView(button("📷  Scanner un produit", ::scan).apply {
+            textSize = 16f
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(Color.WHITE); cornerRadius = dp(15).toFloat()
+            }
+            setTextColor(green)
+        }, margin())
+        root.addView(hero, margin())
+
+        // Search area is visually separated from the primary scan action.
+        val searchCard = card()
+        searchCard.addView(text("Recherche par nom ou code", 18f, ink, true))
+        searchCard.addView(text("Cherchez une marque, un aliment ou saisissez le code-barres.", 13f, muted), margin())
+        searchInput = styleInput(EditText(this).apply {
+            hint = "Nom du produit, marque ou code-barres"
+            setSingleLine(true)
+            inputType = InputType.TYPE_CLASS_TEXT
+            imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH
+            setOnEditorActionListener { _, actionId, _ ->
+                if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) { search(); true } else false
+            }
+        })
+        searchCard.addView(searchInput, margin())
+        searchCard.addView(button("🔎  Rechercher un produit", ::search), margin())
+        root.addView(searchCard, margin())
+
         status = text("Prêt à scanner. Internet requis pour les fiches en ligne.", 13f, muted)
         root.addView(status, margin())
-        root.addView(text("Vos derniers produits", 19f, ink, true), margin())
+
+        // Useful actions are grouped together instead of being scattered through the page.
+        root.addView(text("Vos outils", 20f, ink, true), margin())
+        val toolsGrid = android.widget.GridLayout(this).apply {
+            columnCount = if (resources.configuration.smallestScreenWidthDp >= 600) 4 else 2
+            useDefaultMargins = false
+        }
+        fun toolTile(icon: String, title: String, subtitle: String, action: () -> Unit) {
+            val tile = card().apply {
+                setPadding(dp(13), dp(14), dp(13), dp(14))
+                elevation = dp(1).toFloat()
+                isClickable = true
+                isFocusable = true
+                setOnClickListener { action() }
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    setColor(Color.WHITE); cornerRadius = dp(18).toFloat()
+                    setStroke(dp(1), Color.rgb(225, 237, 229))
+                }
+            }
+            tile.addView(text(icon, 25f, green, true))
+            tile.addView(text(title, 15f, ink, true), margin())
+            tile.addView(text(subtitle, 12f, muted))
+            val params = android.widget.GridLayout.LayoutParams().apply {
+                width = 0
+                height = ViewGroup.LayoutParams.WRAP_CONTENT
+                columnSpec = android.widget.GridLayout.spec(android.widget.GridLayout.UNDEFINED, 1f)
+                setMargins(dp(4), dp(4), dp(4), dp(4))
+            }
+            toolsGrid.addView(tile, params)
+        }
+        toolTile("⚖️", "Comparer", "Comparer deux produits") { showCompare() }
+        toolTile("❤️", "Favoris", "Produits enregistrés") { showFavorites() }
+        toolTile("🕘", "Historique", "Produits consultés") { showHistory() }
+        toolTile("🌐", "Langue", "Modifier la langue") { showSettings() }
+        root.addView(toolsGrid, margin())
+
+        root.addView(text("Vos derniers produits", 20f, ink, true), margin())
         resultBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         root.addView(resultBox)
         showSavedInto("history", resultBox)
-        root.addView(text("Les informations et évaluations dépendent des données disponibles pour chaque produit. Elles ne remplacent pas un avis médical.", 12f, muted), margin())
+        root.addView(text("Les données proviennent d’Open Food Facts et peuvent être incomplètes. Elles ne remplacent pas un avis médical.", 12f, muted), margin())
     }
     private fun showMore() {
         resetContent()
