@@ -341,6 +341,8 @@ class MainActivity : Activity() {
         toolTile("⇄", "Comparer", "Comparer deux produits", Color.rgb(27, 119, 92)) { showCompare() }
         toolTile("♥", "Favoris", "Produits enregistrés", Color.rgb(202, 74, 104)) { showFavorites() }
         toolTile("↻", "Historique", "Produits consultés", Color.rgb(50, 111, 190)) { showHistory() }
+        toolTile("＋", "Calories", "Journal alimentaire", Color.rgb(230, 126, 34)) { showCalorieJournal() }
+        toolTile("♧", "Profil alimentaire", "Allergies et préférences", Color.rgb(13, 148, 136)) { showDietProfile() }
         toolTile("文", "Langue", "Modifier la langue", Color.rgb(116, 88, 184)) { showSettings() }
         root.addView(toolsGrid, margin())
 
@@ -439,6 +441,98 @@ class MainActivity : Activity() {
         val json=JSONObject(body)
         return if(isBarcode) { if(json.optInt("status")==1) json.optJSONObject("product") else null } else json.optJSONArray("products")?.optJSONObject(0)
     }
+    private fun showDietProfile() {
+        resetContent()
+        root.addView(text("Profil alimentaire", 26f, green, true))
+        root.addView(text("Enregistrez les ingrédients à éviter et vos préférences.", 14f, muted))
+        val panel = card()
+        panel.addView(text("Allergies / ingrédients à surveiller", 17f, ink, true))
+        panel.addView(text("Séparez les termes par des virgules. Exemple : arachide, lait, gluten.", 13f, muted))
+        val allergies = styleInput(EditText(this).apply {
+            hint = "Arachide, lait, gluten…"
+            setText(prefs.getString("diet_allergies", "") ?: "")
+            minLines = 2
+            maxLines = 4
+        })
+        panel.addView(allergies, margin())
+        panel.addView(text("Préférence alimentaire", 17f, ink, true), margin())
+        val names = listOf("Aucune préférence", "Végétarien", "Végétalien", "Halal", "Sans gluten", "Sans lactose")
+        val codes = listOf("none", "vegetarian", "vegan", "halal", "gluten_free", "lactose_free")
+        val spinner = Spinner(this).apply {
+            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, names)
+            setSelection(codes.indexOf(prefs.getString("diet_preference", "none")).coerceAtLeast(0))
+        }
+        panel.addView(spinner, margin())
+        panel.addView(button("Enregistrer le profil") {
+            prefs.edit().putString("diet_allergies", allergies.text.toString()).putString("diet_preference", codes[spinner.selectedItemPosition]).apply()
+            Toast.makeText(this, "Profil enregistré", Toast.LENGTH_SHORT).show()
+            buildHome()
+        }, margin())
+        root.addView(panel, margin())
+        val note = card()
+        note.addView(text("À savoir", 16f, Color.rgb(168, 88, 20), true))
+        note.addView(text("Les alertes utilisent uniquement les informations présentes dans la fiche produit. Elles ne remplacent jamais la lecture de l’emballage, notamment en cas d’allergie grave.", 13f, muted))
+        root.addView(note, margin())
+    }
+
+    private fun showCalorieJournal() {
+        resetContent()
+        root.addView(text("Journal alimentaire", 26f, green, true))
+        root.addView(text("Ajoutez les calories indiquées sur les aliments ou les portions consommées.", 14f, muted))
+        val panel = card()
+        val food = styleInput(EditText(this).apply { hint = "Aliment (ex. yaourt)"; setSingleLine(true) })
+        val calories = styleInput(EditText(this).apply { hint = "Calories (kcal)"; inputType = InputType.TYPE_CLASS_NUMBER; setSingleLine(true) })
+        panel.addView(text("Ajouter un aliment", 18f, ink, true))
+        panel.addView(food, margin())
+        panel.addView(calories, margin())
+        val listBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val total = text("", 19f, green, true)
+        fun refreshJournal() {
+            listBox.removeAllViews()
+            val entries = try { org.json.JSONArray(prefs.getString("calorie_journal", "[]")) } catch (_: Exception) { org.json.JSONArray() }
+            var sum = 0
+            for (i in 0 until entries.length()) {
+                val entry = entries.optJSONObject(i) ?: continue
+                sum += entry.optInt("kcal")
+                listBox.addView(text(entry.optString("food") + " — " + entry.optInt("kcal") + " kcal", 15f, ink))
+            }
+            total.text = "Total enregistré : $sum kcal"
+        }
+        panel.addView(button("Ajouter au journal") {
+            val label = food.text.toString().trim()
+            val kcal = calories.text.toString().toIntOrNull()
+            if (label.isBlank() || kcal == null || kcal < 0 || kcal > 10000) {
+                Toast.makeText(this, "Saisissez un aliment et des calories valides", Toast.LENGTH_SHORT).show()
+            } else {
+                val entries = try { org.json.JSONArray(prefs.getString("calorie_journal", "[]")) } catch (_: Exception) { org.json.JSONArray() }
+                entries.put(JSONObject().put("food", label).put("kcal", kcal))
+                prefs.edit().putString("calorie_journal", entries.toString()).apply()
+                food.setText(""); calories.setText(""); refreshJournal()
+            }
+        }, margin())
+        panel.addView(total, margin())
+        panel.addView(listBox, margin())
+        panel.addView(button("Effacer le journal") {
+            prefs.edit().putString("calorie_journal", "[]").apply()
+            refreshJournal()
+        }, margin())
+        root.addView(panel, margin())
+        refreshJournal()
+    }
+
+    private fun dietaryWarnings(ingredients: String, allergens: String, categories: String): List<String> {
+        val source = (ingredients + " " + allergens + " " + categories).lowercase()
+        val warnings = mutableListOf<String>()
+        val terms = (prefs.getString("diet_allergies", "") ?: "").split(",", ";", "،").map { it.trim().lowercase() }.filter { it.length > 1 }
+        terms.filter { source.contains(it) }.forEach { warnings.add("Correspondance possible : $it") }
+        val preference = prefs.getString("diet_preference", "none") ?: "none"
+        if (preference == "gluten_free" && listOf("gluten", "wheat", "blé", "orge", "barley", "seigle", "rye").any { source.contains(it) }) warnings.add("Gluten possible : vérifiez l’étiquette.")
+        if (preference == "lactose_free" && listOf("lactose", "milk", "lait", "whey", "lactosérum").any { source.contains(it) }) warnings.add("Lait/lactose possible : vérifiez l’étiquette.")
+        if (preference == "vegan" && listOf("gelatin", "gélatine", "porc", "pork", "bacon", "lard", "milk", "lait", "egg", "œuf", "honey", "miel").any { source.contains(it) }) warnings.add("Vérifiez la compatibilité végétalienne.")
+        if (preference == "vegetarian" && listOf("gelatin", "gélatine", "porc", "pork", "bacon", "lard", "chicken", "poulet", "fish", "poisson").any { source.contains(it) }) warnings.add("Vérifiez la compatibilité végétarienne.")
+        return warnings.distinct()
+    }
+
     private fun showSettings() {
         resetContent()
         root.addView(text("⚙️ Paramètres", 26f, green, true))
@@ -667,6 +761,19 @@ class MainActivity : Activity() {
         nutrient("saturated-fat_100g", "Graisses saturées", "g")
         nutrient("salt_100g", "Sel", "g")
         nutrient("proteins_100g", "Protéines", "g")
+        val personalWarnings = dietaryWarnings(ingredients, allergens, p.optString("categories"))
+        if (personalWarnings.isNotEmpty()) {
+            val alert = card().apply {
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    setColor(Color.rgb(255, 246, 226)); cornerRadius = dp(16).toFloat()
+                    setStroke(dp(1), Color.rgb(242, 190, 105))
+                }
+            }
+            alert.addView(text("Attention — vérifiez ce produit", 16f, Color.rgb(151, 82, 14), true))
+            personalWarnings.forEach { alert.addView(text("• $it", 14f, ink)) }
+            alert.addView(text("Alerte indicative basée sur les données disponibles. Vérifiez toujours l’emballage.", 12f, muted))
+            c.addView(alert, margin())
+        }
         c.addView(text("Ingrédients", 17f, green, true))
         c.addView(text(ingredients, 14f))
         c.addView(text("Allergènes déclarés", 17f, green, true))
