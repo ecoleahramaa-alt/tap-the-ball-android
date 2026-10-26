@@ -47,9 +47,6 @@ class MainActivity : Activity() {
         "Commencer  →" to mapOf("ar" to "ابدأ ←", "en" to "Get started →", "es" to "Comenzar →", "de" to "Los geht's →", "it" to "Inizia →", "pt" to "Começar →", "nl" to "Start →"),
         "Recherche rapide" to mapOf("ar" to "بحث سريع", "en" to "Quick search", "es" to "Búsqueda rápida", "de" to "Schnellsuche", "it" to "Ricerca rapida", "pt" to "Pesquisa rápida", "nl" to "Snel zoeken"),
         "Comparer" to mapOf("ar" to "مقارنة", "en" to "Compare", "es" to "Comparar", "de" to "Vergleichen", "it" to "Confronta", "pt" to "Comparar", "nl" to "Vergelijken"),
-        "Mes objectifs" to mapOf("ar" to "أهدافي", "en" to "My goals", "es" to "Mis objetivos", "de" to "Meine Ziele", "it" to "I miei obiettivi", "pt" to "Meus objetivos", "nl" to "Mijn doelen"),
-        "Liste de courses" to mapOf("ar" to "قائمة التسوق", "en" to "Shopping list", "es" to "Lista de compras", "de" to "Einkaufsliste", "it" to "Lista della spesa", "pt" to "Lista de compras", "nl" to "Boodschappenlijst"),
-        "Paramètres" to mapOf("ar" to "الإعدادات", "en" to "Settings", "es" to "Ajustes", "de" to "Einstellungen", "it" to "Impostazioni", "pt" to "Definições", "nl" to "Instellingen")
     )
     private fun tr(value: String): String = translations[value]?.get(currentLanguage()) ?: value
     private fun text(value: String, size: Float, color: Int = ink, bold: Boolean = false): TextView {
@@ -198,32 +195,6 @@ class MainActivity : Activity() {
         searchInput = styleInput(EditText(this).apply { hint = "Nom du produit, marque ou code-barres"; setSingleLine(true); inputType = InputType.TYPE_CLASS_TEXT })
         root.addView(searchInput, margin())
         root.addView(button("🔎  Rechercher un produit", ::search), margin())
-        val shortcuts = listOf(
-            Triple("⚖️", "Comparer", { showCompare() }),
-            Triple("🎯", "Mes objectifs", { showGoals() }),
-            Triple("🛒", "Liste de courses", { showShopping() }),
-            Triple("⚙️", "Paramètres", { showSettings() })
-        )
-        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        shortcuts.forEach { item ->
-            val tile = card().apply { gravity = Gravity.CENTER; setPadding(dp(6),dp(12),dp(6),dp(12)) }
-            tile.addView(text(item.first, 24f, green, true).apply { gravity = Gravity.CENTER })
-            tile.addView(text(item.second, 11f, ink, true).apply { gravity = Gravity.CENTER })
-            tile.setOnClickListener { item.third.invoke() }
-            row.addView(tile, LinearLayout.LayoutParams(0, dp(86), 1f).apply { marginEnd=dp(5) })
-        }
-        root.addView(row, margin())
-        root.addView(text("Catégories populaires", 19f, ink, true), margin())
-        val categories = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        listOf("🥛 Laitiers", "🍎 Fruits", "🥣 Céréales", "🥤 Boissons").chunked(2).forEach { pair ->
-            val categoryRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-            pair.forEach { cat ->
-                categoryRow.addView(button(cat, { searchInput.setText(cat.substringAfter(" ").trim()); search() }),
-                    LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(6) })
-            }
-            categories.addView(categoryRow, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(6) })
-        }
-        root.addView(categories, margin())
         status = text("Prêt à scanner. Internet requis pour les fiches en ligne.", 13f, muted)
         root.addView(status, margin())
         root.addView(text("Vos derniers produits", 19f, ink, true), margin())
@@ -238,11 +209,7 @@ class MainActivity : Activity() {
         root.addView(text("Tous vos outils au même endroit", 14f, muted))
         listOf(
             "⚖️ Comparer des produits" to { showCompare() },
-            "🎯 Objectifs nutritionnels" to { showGoals() },
-            "🛒 Liste de courses" to { showShopping() },
-            "❤️ Favoris" to { showFavorites() },
-            "🕘 Historique" to { showHistory() },
-            "⚙️ Paramètres et préférences" to { showSettings() }
+            "⚙️ À propos et source des données" to { showSettings() }
         ).forEach { item -> root.addView(button(item.first, item.second), margin()) }
     }
     private fun showCompare() {
@@ -298,73 +265,10 @@ class MainActivity : Activity() {
         val json=JSONObject(body)
         return if(isBarcode) { if(json.optInt("status")==1) json.optJSONObject("product") else null } else json.optJSONArray("products")?.optJSONObject(0)
     }
-    private fun showGoals() {
-        resetContent()
-        root.addView(text("🎯 Mes objectifs", 26f, green, true))
-        root.addView(text("Définissez des repères personnels. Les objectifs sont enregistrés sur ce téléphone.", 14f, muted))
-        val fields = listOf("Calories quotidiennes (kcal)" to "goal_calories", "Protéines (g)" to "goal_protein", "Sucres (g)" to "goal_sugar", "Sel (g)" to "goal_salt")
-        val inputs = mutableListOf<Pair<String,EditText>>()
-        fields.forEach { (label,key) ->
-            root.addView(text(label, 15f, ink, true), margin())
-            val input=EditText(this).apply { hint="Ex. 2000"; inputType=InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL; setText(prefs.getString(key,"")) }
-            inputs.add(key to input); root.addView(input, margin())
-        }
-        root.addView(button("💾 Enregistrer mes objectifs", {
-            inputs.forEach { (key,input) -> prefs.edit().putString(key,input.text.toString()).apply() }
-            Toast.makeText(this,"Objectifs enregistrés",Toast.LENGTH_SHORT).show()
-        }), margin())
-        root.addView(text("Ces repères sont informatifs et ne constituent pas une prescription médicale.", 12f, muted), margin())
-    }
-    private fun showShopping() {
-        resetContent()
-        root.addView(text("🛒 Liste de courses", 26f, green, true))
-        root.addView(text("Préparez votre prochaine visite au magasin.", 14f, muted))
-        val input=styleInput(EditText(this).apply { hint="Ajouter un aliment"; setSingleLine(true) })
-        root.addView(input, margin())
-        val listBox=LinearLayout(this).apply { orientation=LinearLayout.VERTICAL }
-        fun renderList() {
-            listBox.removeAllViews()
-            val list=savedList("shopping")
-            for(i in 0 until list.length()) {
-                val item=list.optJSONObject(i) ?: continue
-                val cb=CheckBox(this).apply { text=item.optString("name"); setTextColor(ink) }
-                listBox.addView(cb)
-            }
-            if(list.length()==0) listBox.addView(text("Votre liste est vide pour le moment.",14f,muted))
-        }
-        root.addView(button("＋ Ajouter à la liste", {
-            val name=input.text.toString().trim()
-            if(name.isNotBlank()) { val list=savedList("shopping"); list.put(JSONObject().put("name",name)); prefs.edit().putString("shopping",list.toString()).apply(); input.text.clear(); renderList() }
-        }), margin())
-        root.addView(text("À acheter", 18f, ink, true), margin()); root.addView(listBox, margin())
-        root.addView(button("Effacer la liste", { prefs.edit().putString("shopping","[]").apply(); renderList() }), margin())
-        renderList()
-    }
     private fun showSettings() {
         resetContent()
         root.addView(text("⚙️ Paramètres", 26f, green, true))
         root.addView(text("Personnalisez votre expérience ScanFood AI.", 14f, muted))
-        root.addView(text("Langue", 16f, ink, true), margin())
-        val language=Spinner(this)
-        val languageNames = listOf("Français","العربية","English","Español","Deutsch","Italiano","Português","Nederlands")
-        val languageCodes = listOf("fr","ar","en","es","de","it","pt","nl")
-        language.adapter=ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, languageNames)
-        language.setSelection(languageCodes.indexOf(currentLanguage()).coerceAtLeast(0))
-        language.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
-            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: View?, position: Int, id: Long) {
-                val code = languageCodes[position]
-                if (code != currentLanguage()) {
-                    prefs.edit().putString("language_code", code).putInt("language", position).apply()
-                    root.post { showSettings() }
-                }
-            }
-        }
-        root.addView(language, margin())
-        root.addView(text("Préférences alimentaires", 16f, ink, true), margin())
-        val prefsList=listOf("Éviter le sucre ajouté","Réduire le sel","Végétarien","Sans gluten","Sans lactose")
-        prefsList.forEach { label -> val cb=CheckBox(this).apply { text=label; setTextColor(ink); isChecked=prefs.getBoolean("pref_"+label,false); setOnCheckedChangeListener { _,checked -> prefs.edit().putBoolean("pref_"+label,checked).apply() } }; root.addView(cb) }
-        root.addView(button("💾 Enregistrer les paramètres", { prefs.edit().putInt("language",language.selectedItemPosition).apply(); Toast.makeText(this,"Paramètres enregistrés",Toast.LENGTH_SHORT).show() }), margin())
         root.addView(text("À propos", 18f, ink, true), margin())
         root.addView(text("ScanFood AI utilise les informations disponibles dans Open Food Facts. Les fiches peuvent être incomplètes ou inexactes.", 13f, muted))
     }
