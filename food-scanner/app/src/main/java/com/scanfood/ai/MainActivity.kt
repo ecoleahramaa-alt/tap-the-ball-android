@@ -295,9 +295,28 @@ class MainActivity : Activity() {
     private fun showSettings() {
         resetContent()
         root.addView(text("⚙️ Paramètres", 26f, green, true))
-        root.addView(text("Personnalisez votre expérience ScanFood AI.", 14f, muted))
-        root.addView(text("À propos", 18f, ink, true), margin())
-        root.addView(text("ScanFood AI utilise les informations disponibles dans Open Food Facts. Les fiches peuvent être incomplètes ou inexactes.", 13f, muted))
+        root.addView(text("Langue et informations de l’application", 14f, muted))
+        val languageCard = card()
+        languageCard.addView(text("Langue de l’application", 18f, ink, true))
+        languageCard.addView(text("Choisissez votre langue", 13f, muted))
+        val names = listOf("Français", "English", "العربية", "Español", "Deutsch", "Italiano", "Português", "Nederlands")
+        val codes = listOf("fr", "en", "ar", "es", "de", "it", "pt", "nl")
+        val selector = Spinner(this).apply {
+            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, names)
+            setSelection(codes.indexOf(currentLanguage()).coerceAtLeast(0))
+        }
+        languageCard.addView(selector, margin())
+        languageCard.addView(button("Enregistrer la langue") {
+            prefs.edit().putString("language_code", codes[selector.selectedItemPosition]).apply()
+            Toast.makeText(this, "Langue mise à jour", Toast.LENGTH_SHORT).show()
+            buildHome()
+        }, margin())
+        root.addView(languageCard, margin())
+        val aboutCard = card()
+        aboutCard.addView(text("À propos", 18f, ink, true))
+        aboutCard.addView(text("ScanFood AI utilise les informations disponibles dans Open Food Facts. Les fiches peuvent être incomplètes ou inexactes.", 13f, muted))
+        aboutCard.addView(text("Les informations nutritionnelles sont indicatives et ne remplacent pas un avis médical.", 13f, muted), margin())
+        root.addView(aboutCard, margin())
     }
     private fun margin(): LinearLayout.LayoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(10) }
     private fun scan() {
