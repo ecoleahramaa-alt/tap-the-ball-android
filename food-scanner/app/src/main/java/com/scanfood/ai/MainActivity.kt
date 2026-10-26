@@ -50,6 +50,25 @@ class MainActivity : Activity() {
         "Commencer  →" to mapOf("ar" to "ابدأ ←", "en" to "Get started →", "es" to "Comenzar →", "de" to "Los geht's →", "it" to "Inizia →", "pt" to "Começar →", "nl" to "Start →"),
         "Recherche rapide" to mapOf("ar" to "بحث سريع", "en" to "Quick search", "es" to "Búsqueda rápida", "de" to "Schnellsuche", "it" to "Ricerca rapida", "pt" to "Pesquisa rápida", "nl" to "Snel zoeken"),
         "Comparer" to mapOf("ar" to "مقارنة", "en" to "Compare", "es" to "Comparar", "de" to "Vergleichen", "it" to "Confronta", "pt" to "Comparar", "nl" to "Vergelijken"),
+        "Mangez plus malin 🌿" to mapOf("ar" to "اختر طعامك بذكاء 🌿", "en" to "Make smarter food choices 🌿", "es" to "Elige mejor tus alimentos 🌿", "de" to "Bewusster essen 🌿", "it" to "Scegli meglio cosa mangiare 🌿", "pt" to "Faça escolhas melhores 🌿", "nl" to "Maak slimmere voedselkeuzes 🌿"),
+        "Découvrez ce que contient votre alimentation." to mapOf("ar" to "اكتشف مكونات طعامك.", "en" to "Discover what is in your food.", "es" to "Descubre qué contiene tu comida.", "de" to "Entdecke, was in deinem Essen steckt.", "it" to "Scopri cosa contiene il tuo cibo.", "pt" to "Descubra o que contém a sua comida.", "nl" to "Ontdek wat er in je eten zit."),
+        "Nom du produit, marque ou code-barres" to mapOf("ar" to "اسم المنتج أو العلامة أو الرمز الشريطي", "en" to "Product name, brand or barcode", "es" to "Nombre, marca o código de barras", "de" to "Produktname, Marke oder Barcode", "it" to "Nome, marca o codice a barre", "pt" to "Nome, marca ou código de barras", "nl" to "Productnaam, merk of barcode"),
+        "🔎  Rechercher un produit" to mapOf("ar" to "🔎 البحث عن منتج", "en" to "🔎 Search for a product", "es" to "🔎 Buscar producto", "de" to "🔎 Produkt suchen", "it" to "🔎 Cerca un prodotto", "pt" to "🔎 Pesquisar produto", "nl" to "🔎 Product zoeken"),
+        "Vos derniers produits" to mapOf("ar" to "آخر المنتجات", "en" to "Your recent products", "es" to "Tus productos recientes", "de" to "Zuletzt angesehene Produkte", "it" to "Prodotti recenti", "pt" to "Produtos recentes", "nl" to "Recent bekeken producten"),
+        "Plus de ScanFood AI" to mapOf("ar" to "المزيد من ScanFood AI", "en" to "More from ScanFood AI", "es" to "Más de ScanFood AI", "de" to "Mehr von ScanFood AI", "it" to "Altro da ScanFood AI", "pt" to "Mais do ScanFood AI", "nl" to "Meer van ScanFood AI"),
+        "Tous vos outils au même endroit" to mapOf("ar" to "كل الأدوات في مكان واحد", "en" to "All your tools in one place", "es" to "Todas tus herramientas en un solo lugar", "de" to "Alle Werkzeuge an einem Ort", "it" to "Tutti gli strumenti in un unico posto", "pt" to "Todas as ferramentas num só lugar", "nl" to "Al je tools op één plek"),
+        "⚖️ Comparer des produits" to mapOf("ar" to "⚖️ مقارنة المنتجات", "en" to "⚖️ Compare products", "es" to "⚖️ Comparar productos", "de" to "⚖️ Produkte vergleichen", "it" to "⚖️ Confronta prodotti", "pt" to "⚖️ Comparar produtos", "nl" to "⚖️ Producten vergelijken"),
+        "⚙️ À propos et source des données" to mapOf("ar" to "⚙️ حول التطبيق ومصدر البيانات", "en" to "⚙️ About & data source", "es" to "⚙️ Acerca de y fuente de datos", "de" to "⚙️ Info & Datenquelle", "it" to "⚙️ Info e fonte dei dati", "pt" to "⚙️ Sobre e fonte de dados", "nl" to "⚙️ Over en gegevensbron"),
+        "Langue de l’application" to mapOf("ar" to "لغة التطبيق", "en" to "App language", "es" to "Idioma de la aplicación", "de" to "App-Sprache", "it" to "Lingua dell’app", "pt" to "Idioma da aplicação", "nl" to "App-taal"),
+        "Choisissez votre langue" to mapOf("ar" to "اختر لغتك", "en" to "Choose your language", "es" to "Elige tu idioma", "de" to "Sprache auswählen", "it" to "Scegli la lingua", "pt" to "Escolha o idioma", "nl" to "Kies je taal"),
+        "Français" to mapOf("ar" to "الفرنسية", "en" to "French", "es" to "Francés", "de" to "Französisch", "it" to "Francese", "pt" to "Francês", "nl" to "Frans"),
+        "English" to mapOf("ar" to "الإنجليزية", "en" to "English", "es" to "Inglés", "de" to "Englisch", "it" to "Inglese", "pt" to "Inglês", "nl" to "Engels"),
+        "Español" to mapOf("ar" to "الإسبانية", "en" to "Spanish", "es" to "Español", "de" to "Spanisch", "it" to "Spagnolo", "pt" to "Espanhol", "nl" to "Spaans"),
+        "Deutsch" to mapOf("ar" to "الألمانية", "en" to "German", "es" to "Alemán", "de" to "Deutsch", "it" to "Tedesco", "pt" to "Alemão", "nl" to "Duits"),
+        "Italiano" to mapOf("ar" to "الإيطالية", "en" to "Italian", "es" to "Italiano", "de" to "Italienisch", "it" to "Italiano", "pt" to "Italiano", "nl" to "Italiaans"),
+        "Português" to mapOf("ar" to "البرتغالية", "en" to "Portuguese", "es" to "Portugués", "de" to "Portugiesisch", "it" to "Portoghese", "pt" to "Português", "nl" to "Portugees"),
+        "Nederlands" to mapOf("ar" to "الهولندية", "en" to "Dutch", "es" to "Neerlandés", "de" to "Niederländisch", "it" to "Olandese", "pt" to "Neerlandês", "nl" to "Nederlands"),
+        "Enregistrer la langue" to mapOf("ar" to "حفظ اللغة", "en" to "Save language", "es" to "Guardar idioma", "de" to "Sprache speichern", "it" to "Salva lingua", "pt" to "Guardar idioma", "nl" to "Taal opslaan"),
     )
     private fun tr(value: String): String = translations[value]?.get(currentLanguage()) ?: value
     private fun text(value: String, size: Float, color: Int = ink, bold: Boolean = false): TextView {
@@ -329,7 +348,8 @@ class MainActivity : Activity() {
                 .setDesiredBarcodeFormats(com.google.zxing.integration.android.IntentIntegrator.ALL_CODE_TYPES)
                 .initiateScan()
         } catch (e: Exception) {
-            status.text = "Impossible d’ouvrir le scanner : ${e.message ?: "erreur"}"
+            if (::status.isInitialized) status.text = "Impossible d’ouvrir le scanner : ${e.message ?: "erreur"}"
+            else Toast.makeText(this, "Impossible d’ouvrir le scanner.", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -339,7 +359,10 @@ class MainActivity : Activity() {
         val result = com.google.zxing.integration.android.IntentIntegrator.parseActivityResult(requestCode, resultCode, data)
         if (result != null) {
             val code = result.contents
-            if (code.isNullOrBlank()) status.text = "Scan annulé." else {
+            buildHome()
+            if (code.isNullOrBlank()) {
+                status.text = "Scan annulé."
+            } else {
                 searchInput.setText(code)
                 search()
             }
