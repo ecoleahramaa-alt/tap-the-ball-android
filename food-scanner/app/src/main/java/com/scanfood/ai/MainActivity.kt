@@ -143,7 +143,7 @@ class MainActivity : Activity() {
         val nav = LinearLayout(this).apply {
             orientation = if (sidebar) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
             gravity = if (sidebar) Gravity.TOP else Gravity.CENTER
-            setPadding(if (sidebar) dp(12) else dp(4), dp(8), if (sidebar) dp(12) else dp(4), dp(8))
+            setPadding(if (sidebar) dp(12) else dp(2), if (sidebar) dp(8) else dp(3), if (sidebar) dp(12) else dp(2), if (sidebar) dp(8) else dp(3))
             setBackgroundColor(Color.WHITE)
             elevation = dp(8).toFloat()
         }
@@ -163,15 +163,17 @@ class MainActivity : Activity() {
             val col = LinearLayout(this).apply {
                 orientation = if (sidebar) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
                 gravity = Gravity.CENTER_VERTICAL
-                setPadding(dp(8), dp(12), dp(8), dp(12))
-                minimumHeight = dp(48)
+                setPadding(if (sidebar) dp(8) else dp(1), if (sidebar) dp(12) else dp(2), if (sidebar) dp(8) else dp(1), if (sidebar) dp(12) else dp(2))
+                minimumHeight = if (sidebar) dp(48) else dp(44)
                 if (sidebar) background = android.graphics.drawable.GradientDrawable().apply {
                     setColor(Color.rgb(246, 251, 247)); cornerRadius = dp(12).toFloat()
                 }
             }
-            col.addView(text(item.first, 21f, green, true).apply { gravity = Gravity.CENTER })
-            col.addView(text(item.second, if (sidebar) 14f else 10f, if (sidebar) ink else muted, true).apply {
+            col.addView(text(item.first, if (sidebar) 21f else 17f, green, true).apply { gravity = Gravity.CENTER })
+            col.addView(text(item.second, if (sidebar) 14f else 9f, if (sidebar) ink else muted, true).apply {
                 gravity = if (sidebar) Gravity.CENTER_VERTICAL else Gravity.CENTER
+                maxLines = 1
+                includeFontPadding = false
                 if (sidebar) setPadding(dp(12), 0, dp(4), 0)
             })
             col.setOnClickListener { item.third.invoke() }
@@ -212,9 +214,14 @@ class MainActivity : Activity() {
         }
         root.addView(row, margin())
         root.addView(text("Catégories populaires", 19f, ink, true), margin())
-        val categories = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        listOf("🥛 Laitiers", "🍎 Fruits", "🥣 Céréales", "🥤 Boissons").forEach { cat ->
-            categories.addView(button(cat, { searchInput.setText(cat.substringAfter(" ").trim()); search() }), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd=dp(4) })
+        val categories = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        listOf("🥛 Laitiers", "🍎 Fruits", "🥣 Céréales", "🥤 Boissons").chunked(2).forEach { pair ->
+            val categoryRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            pair.forEach { cat ->
+                categoryRow.addView(button(cat, { searchInput.setText(cat.substringAfter(" ").trim()); search() }),
+                    LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(6) })
+            }
+            categories.addView(categoryRow, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(6) })
         }
         root.addView(categories, margin())
         status = text("Prêt à scanner. Internet requis pour les fiches en ligne.", 13f, muted)
