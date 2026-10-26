@@ -5,13 +5,13 @@ plugins {
 
 android {
     namespace = "com.scanfoodai.foodscanner.nutrition"
-    compileSdk = 35
+    compileSdk = 36
     defaultConfig {
         applicationId = "com.scanfoodai.foodscanner.nutrition"
         minSdk = 23
-        targetSdk = 35
-        versionCode = 3
-        versionName = "1.2.0"
+        targetSdk = 36
+        versionCode = 4
+        versionName = "1.3.0"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
