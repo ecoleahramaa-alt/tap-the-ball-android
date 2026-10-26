@@ -355,10 +355,10 @@ class MainActivity : Activity() {
         root.addView(text("Plus de ScanFood AI", 26f, green, true))
         root.addView(text("Tous vos outils au même endroit", 14f, muted))
         val toolList = listOf(
-            Triple("⇄", "Comparer les produits", "Comparer calories, sucres, sel, fibres et protéines.") { showCompare() },
-            Triple("♥", "Mes favoris", "Retrouver rapidement les produits enregistrés.") { showFavorites() },
-            Triple("↻", "Historique des scans", "Revoir les produits récemment consultés.") { showHistory() },
-            Triple("文", "Langue et affichage", "Choisir parmi 8 langues disponibles.") { showSettings() }
+            listOf("⇄", "Comparer les produits", "Comparer calories, sucres, sel, fibres et protéines."),
+            listOf("♥", "Mes favoris", "Retrouver rapidement les produits enregistrés."),
+            listOf("↻", "Historique des scans", "Revoir les produits récemment consultés."),
+            listOf("文", "Langue et affichage", "Choisir parmi 8 langues disponibles.")
         )
         toolList.forEachIndexed { index, item ->
             val itemCard = card().apply {
@@ -367,7 +367,7 @@ class MainActivity : Activity() {
                 setPadding(dp(14), dp(13), dp(14), dp(13))
             }
             val badge = TextView(this).apply {
-                text = item.first; textSize = 22f; gravity = Gravity.CENTER; setTextColor(Color.WHITE)
+                text = item[0]; textSize = 22f; gravity = Gravity.CENTER; setTextColor(Color.WHITE)
                 background = android.graphics.drawable.GradientDrawable().apply {
                     setColor(listOf(Color.rgb(27,119,92), Color.rgb(202,74,104), Color.rgb(50,111,190), Color.rgb(116,88,184))[index])
                     cornerRadius = dp(14).toFloat()
@@ -378,11 +378,11 @@ class MainActivity : Activity() {
                 orientation = LinearLayout.VERTICAL
                 setPadding(dp(12), 0, dp(8), 0)
             }
-            copy.addView(text(item.second, 16f, ink, true))
-            copy.addView(text(item.third, 12f, muted))
+            copy.addView(text(item[1], 16f, ink, true))
+            copy.addView(text(item[2], 12f, muted))
             itemCard.addView(copy, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
             itemCard.addView(text("›", 26f, green, true))
-            itemCard.setOnClickListener { item.fourth.invoke() }
+            itemCard.setOnClickListener { when (index) { 0 -> showCompare(); 1 -> showFavorites(); 2 -> showHistory(); else -> showSettings() } }
             root.addView(itemCard, margin())
         }
     }
