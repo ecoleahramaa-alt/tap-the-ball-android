@@ -3,6 +3,15 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+val uploadStoreFile = System.getenv("ANDROID_KEYSTORE_FILE")
+val uploadStorePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+val uploadKeyAlias = System.getenv("ANDROID_KEY_ALIAS")
+val uploadKeyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+val releaseSigningAvailable = !uploadStoreFile.isNullOrBlank() &&
+    !uploadStorePassword.isNullOrBlank() &&
+    !uploadKeyAlias.isNullOrBlank() &&
+    !uploadKeyPassword.isNullOrBlank()
+
 android {
     namespace = "com.scanfoodai.foodscanner.nutrition"
     compileSdk = 36
@@ -10,8 +19,25 @@ android {
         applicationId = "com.scanfoodai.foodscanner.nutrition"
         minSdk = 23
         targetSdk = 36
-        versionCode = 4
-        versionName = "1.3.0"
+        versionCode = 1
+        versionName = "1.0.0"
+    }
+    signingConfigs {
+        if (releaseSigningAvailable) {
+            create("upload") {
+                storeFile = file(uploadStoreFile!!)
+                storePassword = uploadStorePassword
+                keyAlias = uploadKeyAlias
+                keyPassword = uploadKeyPassword
+            }
+        }
+    }
+    buildTypes {
+        getByName("release") {
+            if (releaseSigningAvailable) {
+                signingConfig = signingConfigs.getByName("upload")
+            }
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
