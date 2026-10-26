@@ -584,6 +584,13 @@ class MainActivity : Activity() {
         aboutCard.addView(text("À propos", 18f, ink, true))
         aboutCard.addView(text("ScanFood AI utilise les informations disponibles dans Open Food Facts. Les fiches peuvent être incomplètes ou inexactes.", 13f, muted))
         aboutCard.addView(text("Les informations nutritionnelles sont indicatives et ne remplacent pas un avis médical.", 13f, muted), margin())
+        aboutCard.addView(button("Politique de confidentialité") {
+            try {
+                startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://github.com/ecoleahramaa-alt/tap-the-ball-android/blob/main/food-scanner/privacy-policy.html")))
+            } catch (_: Exception) {
+                Toast.makeText(this, "Impossible d’ouvrir la politique de confidentialité.", Toast.LENGTH_SHORT).show()
+            }
+        }, margin())
         root.addView(aboutCard, margin())
     }
     private fun margin(): LinearLayout.LayoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(10) }
