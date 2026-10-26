@@ -5,8 +5,8 @@
     <application
         android:allowBackup="false"
         android:label="ScanFood AI"
-        android:icon="@drawable/ic_scanfood_logo"
-        android:roundIcon="@drawable/ic_scanfood_logo"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="false"
         android:supportsRtl="true">
