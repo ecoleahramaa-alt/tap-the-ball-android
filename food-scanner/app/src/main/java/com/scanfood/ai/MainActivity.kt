@@ -251,6 +251,13 @@ class MainActivity : Activity() {
         })
         root.addView(header, margin())
 
+        // Visible shortcut so users can easily find app information and the privacy policy.
+        root.addView(button("ℹ️ À propos et confidentialité") { showSettings() }.apply {
+            textSize = 14f
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+            contentDescription = "À propos et politique de confidentialité"
+        }, margin())
+
         // Main call-to-action card
         val hero = card().apply {
             setPadding(dp(20), dp(20), dp(20), dp(20))
