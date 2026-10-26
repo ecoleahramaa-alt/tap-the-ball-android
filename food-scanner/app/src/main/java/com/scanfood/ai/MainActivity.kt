@@ -33,6 +33,9 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         window.statusBarColor = Color.rgb(6, 78, 59)
         window.navigationBarColor = Color.rgb(7, 27, 22)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+        }
         showSplash()
     }
 
@@ -117,10 +120,15 @@ class MainActivity : Activity() {
             setBackgroundColor(pale)
             layoutDirection = if (rtl) View.LAYOUT_DIRECTION_RTL else View.LAYOUT_DIRECTION_LTR
         }
-        contentScroll = ScrollView(this).apply { isFillViewport = true }
+        contentScroll = ScrollView(this).apply {
+            isFillViewport = true
+            clipToPadding = false
+            overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
+        }
         root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(18), dp(16), dp(18), dp(28))
+            setPadding(dp(18), dp(16), dp(18), dp(36))
+            clipToPadding = false
             setBackgroundColor(pale)
             layoutDirection = if (rtl) View.LAYOUT_DIRECTION_RTL else View.LAYOUT_DIRECTION_LTR
         }
@@ -132,7 +140,25 @@ class MainActivity : Activity() {
             shell.addView(contentScroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
             shell.addView(createNavigation(false), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         }
+        // Apply system-bar insets to the shell so bottom navigation never sits behind Android's system buttons.
+        shell.setOnApplyWindowInsetsListener { view, insets ->
+            val bottomInset = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                insets.getInsets(android.view.WindowInsets.Type.navigationBars() or android.view.WindowInsets.Type.displayCutout()).bottom
+            } else {
+                @Suppress("DEPRECATION")
+                insets.systemWindowInsetBottom
+            }
+            val topInset = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                insets.getInsets(android.view.WindowInsets.Type.statusBars() or android.view.WindowInsets.Type.displayCutout()).top
+            } else {
+                @Suppress("DEPRECATION")
+                insets.systemWindowInsetTop
+            }
+            view.setPadding(0, topInset, 0, if (wide) 0 else bottomInset)
+            insets
+        }
         setContentView(shell)
+        shell.requestApplyInsets()
         showHome()
     }
 
@@ -140,7 +166,7 @@ class MainActivity : Activity() {
         val nav = LinearLayout(this).apply {
             orientation = if (sidebar) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
             gravity = if (sidebar) Gravity.TOP else Gravity.CENTER
-            setPadding(if (sidebar) dp(12) else dp(2), if (sidebar) dp(8) else dp(3), if (sidebar) dp(12) else dp(2), if (sidebar) dp(8) else dp(3))
+            setPadding(if (sidebar) dp(12) else dp(3), if (sidebar) dp(8) else dp(5), if (sidebar) dp(12) else dp(3), if (sidebar) dp(8) else dp(5))
             setBackgroundColor(Color.WHITE)
             elevation = dp(8).toFloat()
         }
@@ -160,17 +186,18 @@ class MainActivity : Activity() {
             val col = LinearLayout(this).apply {
                 orientation = if (sidebar) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
                 gravity = Gravity.CENTER_VERTICAL
-                setPadding(if (sidebar) dp(8) else dp(1), if (sidebar) dp(12) else dp(2), if (sidebar) dp(8) else dp(1), if (sidebar) dp(12) else dp(2))
-                minimumHeight = if (sidebar) dp(48) else dp(44)
+                setPadding(if (sidebar) dp(8) else dp(1), if (sidebar) dp(12) else dp(1), if (sidebar) dp(8) else dp(1), if (sidebar) dp(12) else dp(1))
+                minimumHeight = if (sidebar) dp(48) else dp(42)
                 if (sidebar) background = android.graphics.drawable.GradientDrawable().apply {
                     setColor(Color.rgb(246, 251, 247)); cornerRadius = dp(12).toFloat()
                 }
             }
-            col.addView(text(item.first, if (sidebar) 21f else 17f, green, true).apply { gravity = Gravity.CENTER })
+            col.addView(text(item.first, if (sidebar) 21f else 17f, green, true).apply { gravity = Gravity.CENTER; includeFontPadding = false })
             col.addView(text(item.second, if (sidebar) 14f else 9f, if (sidebar) ink else muted, true).apply {
                 gravity = if (sidebar) Gravity.CENTER_VERTICAL else Gravity.CENTER
                 maxLines = 1
                 includeFontPadding = false
+                ellipsize = android.text.TextUtils.TruncateAt.END
                 if (sidebar) setPadding(dp(12), 0, dp(4), 0)
             })
             col.setOnClickListener { item.third.invoke() }
