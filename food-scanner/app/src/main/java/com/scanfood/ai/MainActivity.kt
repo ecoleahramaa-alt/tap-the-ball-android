@@ -353,10 +353,12 @@ class MainActivity : Activity() {
         toolTile("文", "Langue", "Modifier la langue", Color.rgb(116, 88, 184)) { showSettings() }
         root.addView(toolsGrid, margin())
 
-        root.addView(text("Vos derniers produits", 20f, ink, true), margin())
+        root.addView(text("Résultat du scan / de la recherche", 21f, green, true), margin())
+        root.addView(text("Le résultat s’affichera ici automatiquement après le scan ou la recherche.", 13f, muted))
         resultBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        root.addView(resultBox)
-        showSavedInto("history", resultBox)
+        root.addView(resultBox, margin())
+        root.addView(text("Vos derniers produits", 20f, ink, true), margin())
+        showSavedInto("history", resultBoxForHistory())
         root.addView(text("Les données proviennent d’Open Food Facts et peuvent être incomplètes. Elles ne remplacent pas un avis médical.", 12f, muted), margin())
     }
     private fun showMore() {
@@ -664,7 +666,7 @@ class MainActivity : Activity() {
     private fun search() {
         val q = searchInput.text.toString().trim()
         if (q.isEmpty()) { searchInput.error = "Saisis un nom ou scanne un code"; return }
-        status.text = "ScanFood AI"
+        status.text = "Recherche en cours…"
         resultBox.removeAllViews()
         val loadingCard = card()
         loadingCard.orientation = LinearLayout.HORIZONTAL
@@ -672,6 +674,7 @@ class MainActivity : Activity() {
         loadingCard.addView(ProgressBar(this).apply { isIndeterminate = true }, LinearLayout.LayoutParams(dp(34), dp(34)))
         loadingCard.addView(text("  Recherche des informations nutritionnelles…", 14f, green, true))
         resultBox.addView(loadingCard, margin())
+        scrollToResult()
         executor.execute {
             try {
                 val isBarcode = q.matches(Regex("\\d{8,14}"))
@@ -693,17 +696,19 @@ class MainActivity : Activity() {
                 }
                 runOnUiThread {
                     if (product == null) {
-                        status.text = "Produit introuvable. Vérifie le code ou essaie le nom."
-                        showMessage("Aucune fiche trouvée. Tous les produits ne sont pas enregistrés.")
+                        status.text = "❌ Aucun produit trouvé"
+                        showMessage("Aucun résultat trouvé pour « $q ». Vérifie le code-barres ou essaie le nom du produit.")
                     } else {
-                        status.text = "Fiche produit chargée."
+                        status.text = "✅ Résultat affiché"
                         renderProduct(product, q)
                     }
+                    scrollToResult()
                 }
             } catch (e: Exception) {
                 runOnUiThread {
-                    status.text = "Connexion impossible. Vérifie Internet puis réessaie."
-                    showMessage("Les informations du produit n’ont pas pu être chargées.")
+                    status.text = "⚠️ Recherche impossible"
+                    showMessage("Les informations du produit n’ont pas pu être chargées. Vérifie ta connexion Internet puis réessaie.")
+                    scrollToResult()
                 }
             }
         }
@@ -754,6 +759,24 @@ class MainActivity : Activity() {
             target.addView(c, margin())
         }
     }
+    private fun resultBoxForHistory(): LinearLayout {
+        val historyBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        // Keep the home screen's scan result separate from the recent-products list.
+        root.addView(historyBox, margin())
+        return historyBox
+    }
+
+    private fun scrollToResult() {
+        if (!::contentScroll.isInitialized || !::resultBox.isInitialized) return
+        contentScroll.post {
+            val location = IntArray(2)
+            resultBox.getLocationInWindow(location)
+            val scrollLocation = IntArray(2)
+            contentScroll.getLocationInWindow(scrollLocation)
+            contentScroll.smoothScrollTo(0, (location[1] - scrollLocation[1] + contentScroll.scrollY - dp(20)).coerceAtLeast(0))
+        }
+    }
+
     private fun showMessage(message: String) {
         resultBox.removeAllViews()
         val c = card(); c.addView(text(message, 14f, muted)); resultBox.addView(c, margin())
