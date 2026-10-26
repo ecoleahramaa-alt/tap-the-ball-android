@@ -1,4 +1,4 @@
-name: Build ScanFood AI APK
+name: Build ScanFood AI Android
 on:
   push:
     paths:
@@ -20,12 +20,18 @@ jobs:
           java-version: '17'
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
-      - name: Build debug APK
+      - name: Build debug APK and release bundle
         working-directory: food-scanner
-        run: gradle --no-daemon assembleDebug
-      - name: Upload APK
+        run: gradle --no-daemon clean assembleDebug bundleRelease
+      - name: Upload debug APK for device testing
         uses: actions/upload-artifact@v4
         with:
           name: ScanFoodAI-debug-apk
           path: food-scanner/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
+      - name: Upload release AAB (signing status must be checked)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ScanFoodAI-release-aab
+          path: food-scanner/app/build/outputs/bundle/release/app-release.aab
           retention-days: 14
