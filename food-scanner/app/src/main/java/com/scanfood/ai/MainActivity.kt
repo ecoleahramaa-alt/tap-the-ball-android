@@ -113,32 +113,71 @@ class MainActivity : Activity() {
     }
 
     private fun buildHome() {
-        shell = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(pale) }
-        contentScroll = ScrollView(this)
-        root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(18), dp(12), dp(18), dp(24)); setBackgroundColor(pale); layoutDirection = if (currentLanguage() == "ar") View.LAYOUT_DIRECTION_RTL else View.LAYOUT_DIRECTION_LTR }
-        contentScroll.addView(root)
-        shell.addView(contentScroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
-        val nav = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER
-            setPadding(dp(4), dp(5), dp(4), dp(5)); setBackgroundColor(Color.WHITE)
-            elevation = dp(10).toFloat()
+        val rtl = currentLanguage() == "ar"
+        val wide = resources.configuration.smallestScreenWidthDp >= 600
+        shell = LinearLayout(this).apply {
+            orientation = if (wide) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
+            setBackgroundColor(pale)
+            layoutDirection = if (rtl) View.LAYOUT_DIRECTION_RTL else View.LAYOUT_DIRECTION_LTR
         }
-        listOf(
+        contentScroll = ScrollView(this).apply { isFillViewport = true }
+        root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(18), dp(16), dp(18), dp(28))
+            setBackgroundColor(pale)
+            layoutDirection = if (rtl) View.LAYOUT_DIRECTION_RTL else View.LAYOUT_DIRECTION_LTR
+        }
+        contentScroll.addView(root, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        if (wide) {
+            shell.addView(createNavigation(true), LinearLayout.LayoutParams(dp(220), ViewGroup.LayoutParams.MATCH_PARENT))
+            shell.addView(contentScroll, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
+        } else {
+            shell.addView(contentScroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+            shell.addView(createNavigation(false), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        }
+        setContentView(shell)
+        showHome()
+    }
+
+    private fun createNavigation(sidebar: Boolean): LinearLayout {
+        val nav = LinearLayout(this).apply {
+            orientation = if (sidebar) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
+            gravity = if (sidebar) Gravity.TOP else Gravity.CENTER
+            setPadding(if (sidebar) dp(12) else dp(4), dp(8), if (sidebar) dp(12) else dp(4), dp(8))
+            setBackgroundColor(Color.WHITE)
+            elevation = dp(8).toFloat()
+        }
+        if (sidebar) {
+            nav.addView(text("🥑 ScanFood AI", 20f, green, true).apply {
+                setPadding(dp(8), dp(18), dp(8), dp(24))
+            })
+        }
+        val items = listOf(
             Triple("⌂", "Accueil") { showHome() },
             Triple("▣", "Scanner") { scan() },
             Triple("◷", "Historique") { showHistory() },
             Triple("♡", "Favoris") { showFavorites() },
             Triple("•••", "Plus") { showMore() }
-        ).forEach { item ->
-            val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER; setPadding(dp(3), dp(4), dp(3), dp(4)) }
+        )
+        items.forEach { item ->
+            val col = LinearLayout(this).apply {
+                orientation = if (sidebar) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(8), dp(12), dp(8), dp(12))
+                minimumHeight = dp(48)
+                if (sidebar) background = android.graphics.drawable.GradientDrawable().apply {
+                    setColor(Color.rgb(246, 251, 247)); cornerRadius = dp(12).toFloat()
+                }
+            }
             col.addView(text(item.first, 21f, green, true).apply { gravity = Gravity.CENTER })
-            col.addView(text(item.second, 10f, muted, true).apply { gravity = Gravity.CENTER })
+            col.addView(text(item.second, if (sidebar) 14f else 10f, if (sidebar) ink else muted, true).apply {
+                gravity = if (sidebar) Gravity.CENTER_VERTICAL else Gravity.CENTER
+                if (sidebar) setPadding(dp(12), 0, dp(4), 0)
+            })
             col.setOnClickListener { item.third.invoke() }
-            nav.addView(col, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            nav.addView(col, if (sidebar) LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(5) } else LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         }
-        shell.addView(nav, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        setContentView(shell)
-        showHome()
+        return nav
     }
     private fun resetContent() {
         root.removeAllViews()
