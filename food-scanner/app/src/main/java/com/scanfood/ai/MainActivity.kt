@@ -299,33 +299,49 @@ class MainActivity : Activity() {
             columnCount = if (resources.configuration.smallestScreenWidthDp >= 600) 4 else 2
             useDefaultMargins = false
         }
-        fun toolTile(icon: String, title: String, subtitle: String, action: () -> Unit) {
-            val tile = card().apply {
-                setPadding(dp(13), dp(14), dp(13), dp(14))
-                elevation = dp(1).toFloat()
+        fun toolTile(icon: String, title: String, subtitle: String, accent: Int, action: () -> Unit) {
+            val tile = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(15), dp(15), dp(15), dp(16))
+                elevation = dp(2).toFloat()
                 isClickable = true
                 isFocusable = true
                 setOnClickListener { action() }
                 background = android.graphics.drawable.GradientDrawable().apply {
-                    setColor(Color.WHITE); cornerRadius = dp(18).toFloat()
+                    setColor(Color.WHITE); cornerRadius = dp(20).toFloat()
                     setStroke(dp(1), Color.rgb(225, 237, 229))
                 }
             }
-            tile.addView(text(icon, 25f, green, true))
-            tile.addView(text(title, 15f, ink, true), margin())
+            val iconBadge = FrameLayout(this).apply {
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    setColor(accent); cornerRadius = dp(15).toFloat()
+                }
+                layoutParams = LinearLayout.LayoutParams(dp(52), dp(52))
+            }
+            val iconView = TextView(this).apply {
+                text = icon
+                textSize = 25f
+                gravity = Gravity.CENTER
+                setTextColor(Color.WHITE)
+                includeFontPadding = false
+                typeface = Typeface.DEFAULT_BOLD
+            }
+            iconBadge.addView(iconView, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+            tile.addView(iconBadge)
+            tile.addView(text(title, 16f, ink, true), margin())
             tile.addView(text(subtitle, 12f, muted))
             val params = android.widget.GridLayout.LayoutParams().apply {
                 width = 0
                 height = ViewGroup.LayoutParams.WRAP_CONTENT
                 columnSpec = android.widget.GridLayout.spec(android.widget.GridLayout.UNDEFINED, 1f)
-                setMargins(dp(4), dp(4), dp(4), dp(4))
+                setMargins(dp(5), dp(5), dp(5), dp(5))
             }
             toolsGrid.addView(tile, params)
         }
-        toolTile("⚖️", "Comparer", "Comparer deux produits") { showCompare() }
-        toolTile("❤️", "Favoris", "Produits enregistrés") { showFavorites() }
-        toolTile("🕘", "Historique", "Produits consultés") { showHistory() }
-        toolTile("🌐", "Langue", "Modifier la langue") { showSettings() }
+        toolTile("⇄", "Comparer", "Comparer deux produits", Color.rgb(27, 119, 92)) { showCompare() }
+        toolTile("♥", "Favoris", "Produits enregistrés", Color.rgb(202, 74, 104)) { showFavorites() }
+        toolTile("↻", "Historique", "Produits consultés", Color.rgb(50, 111, 190)) { showHistory() }
+        toolTile("文", "Langue", "Modifier la langue", Color.rgb(116, 88, 184)) { showSettings() }
         root.addView(toolsGrid, margin())
 
         root.addView(text("Vos derniers produits", 20f, ink, true), margin())
@@ -338,10 +354,37 @@ class MainActivity : Activity() {
         resetContent()
         root.addView(text("Plus de ScanFood AI", 26f, green, true))
         root.addView(text("Tous vos outils au même endroit", 14f, muted))
-        listOf(
-            "⚖️ Comparer des produits" to { showCompare() },
-            "⚙️ À propos et source des données" to { showSettings() }
-        ).forEach { item -> root.addView(button(item.first, item.second), margin()) }
+        val toolList = listOf(
+            Triple("⇄", "Comparer les produits", "Comparer calories, sucres, sel, fibres et protéines.") { showCompare() },
+            Triple("♥", "Mes favoris", "Retrouver rapidement les produits enregistrés.") { showFavorites() },
+            Triple("↻", "Historique des scans", "Revoir les produits récemment consultés.") { showHistory() },
+            Triple("文", "Langue et affichage", "Choisir parmi 8 langues disponibles.") { showSettings() }
+        )
+        toolList.forEachIndexed { index, item ->
+            val itemCard = card().apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(14), dp(13), dp(14), dp(13))
+            }
+            val badge = TextView(this).apply {
+                text = item.first; textSize = 22f; gravity = Gravity.CENTER; setTextColor(Color.WHITE)
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    setColor(listOf(Color.rgb(27,119,92), Color.rgb(202,74,104), Color.rgb(50,111,190), Color.rgb(116,88,184))[index])
+                    cornerRadius = dp(14).toFloat()
+                }
+            }
+            itemCard.addView(badge, LinearLayout.LayoutParams(dp(48), dp(48)))
+            val copy = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(12), 0, dp(8), 0)
+            }
+            copy.addView(text(item.second, 16f, ink, true))
+            copy.addView(text(item.third, 12f, muted))
+            itemCard.addView(copy, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            itemCard.addView(text("›", 26f, green, true))
+            itemCard.setOnClickListener { item.fourth.invoke() }
+            root.addView(itemCard, margin())
+        }
     }
     private fun showCompare() {
         resetContent()
@@ -405,8 +448,35 @@ class MainActivity : Activity() {
         languageCard.addView(text("Choisissez votre langue", 13f, muted))
         val names = listOf("Français", "English", "العربية", "Español", "Deutsch", "Italiano", "Português", "Nederlands")
         val codes = listOf("fr", "en", "ar", "es", "de", "it", "pt", "nl")
+        val languageAdapter = object : ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, names) {
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val label = (convertView as? TextView) ?: TextView(this@MainActivity)
+                label.text = getItem(position)
+                label.textSize = 16f
+                label.setTextColor(ink)
+                label.setPadding(dp(14), dp(13), dp(14), dp(13))
+                label.background = android.graphics.drawable.GradientDrawable().apply {
+                    setColor(Color.WHITE); cornerRadius = dp(12).toFloat()
+                    setStroke(dp(1), Color.rgb(205, 224, 213))
+                }
+                return label
+            }
+            override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val label = (convertView as? TextView) ?: TextView(this@MainActivity)
+                label.text = getItem(position)
+                label.textSize = 16f
+                label.setTextColor(ink)
+                label.setPadding(dp(16), dp(13), dp(16), dp(13))
+                label.setBackgroundColor(Color.WHITE)
+                return label
+            }
+        }.apply { setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
         val selector = Spinner(this).apply {
-            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, names)
+            adapter = languageAdapter
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(Color.WHITE); cornerRadius = dp(12).toFloat()
+                setStroke(dp(1), Color.rgb(205, 224, 213))
+            }
             setSelection(codes.indexOf(currentLanguage()).coerceAtLeast(0))
         }
         languageCard.addView(selector, margin())
