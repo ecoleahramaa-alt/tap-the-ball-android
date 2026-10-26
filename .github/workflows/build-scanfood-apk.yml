@@ -20,18 +20,37 @@ jobs:
           java-version: '17'
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
-      - name: Build debug APK and release bundle
+      - name: Build debug APK for device testing
         working-directory: food-scanner
-        run: gradle --no-daemon clean assembleDebug bundleRelease
+        run: gradle --no-daemon clean assembleDebug
+      - name: Prepare release keystore
+        if: ${{ env.ANDROID_KEYSTORE_BASE64 != '' }}
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          test -n "$ANDROID_KEYSTORE_BASE64"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > food-scanner/app/upload-keystore.jks
+          chmod 600 food-scanner/app/upload-keystore.jks
+      - name: Build signed release bundle
+        if: ${{ env.ANDROID_KEYSTORE_BASE64 != '' }}
+        working-directory: food-scanner
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_FILE: upload-keystore.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: gradle --no-daemon bundleRelease
       - name: Upload debug APK for device testing
         uses: actions/upload-artifact@v4
         with:
           name: ScanFoodAI-debug-apk
           path: food-scanner/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 14
-      - name: Upload release AAB (signing status must be checked)
+      - name: Upload signed release AAB
+        if: ${{ env.ANDROID_KEYSTORE_BASE64 != '' }}
         uses: actions/upload-artifact@v4
         with:
-          name: ScanFoodAI-release-aab
+          name: ScanFoodAI-signed-release-aab
           path: food-scanner/app/build/outputs/bundle/release/app-release.aab
           retention-days: 14
