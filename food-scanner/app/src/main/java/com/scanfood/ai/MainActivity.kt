@@ -252,7 +252,7 @@ class MainActivity : Activity() {
         root.addView(header, margin())
 
         // Visible shortcut so users can easily find app information and the privacy policy.
-        root.addView(button("ℹ️ À propos et confidentialité") { showSettings() }.apply {
+        root.addView(button("ℹ️ À propos et confidentialité") { showPrivacyPolicy() }.apply {
             textSize = 14f
             setPadding(dp(14), dp(12), dp(14), dp(12))
             contentDescription = "À propos et politique de confidentialité"
@@ -592,14 +592,44 @@ class MainActivity : Activity() {
         aboutCard.addView(text("ScanFood AI utilise les informations disponibles dans Open Food Facts. Les fiches peuvent être incomplètes ou inexactes.", 13f, muted))
         aboutCard.addView(text("Les informations nutritionnelles sont indicatives et ne remplacent pas un avis médical.", 13f, muted), margin())
         aboutCard.addView(button("Politique de confidentialité") {
-            try {
-                startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://github.com/ecoleahramaa-alt/tap-the-ball-android/blob/main/food-scanner/privacy-policy.html")))
-            } catch (_: Exception) {
-                Toast.makeText(this, "Impossible d’ouvrir la politique de confidentialité.", Toast.LENGTH_SHORT).show()
-            }
+            showPrivacyPolicy()
         }, margin())
         root.addView(aboutCard, margin())
     }
+
+    private fun showPrivacyPolicy() {
+        resetContent()
+        root.addView(button("← Retour") { showHome() }.apply {
+            setPadding(dp(12), dp(10), dp(12), dp(10))
+        }, margin())
+        root.addView(text("🔒 Politique de confidentialité", 24f, green, true), margin())
+        root.addView(text("ScanFood AI — Dernière mise à jour : 26 octobre 2026", 12f, muted), margin())
+
+        fun section(title: String, body: String) {
+            root.addView(text(title, 18f, ink, true), margin())
+            root.addView(text(body, 14f, muted).apply {
+                setLineSpacing(dp(3).toFloat(), 1.05f)
+            }, margin())
+        }
+
+        section("À propos de l’application",
+            "ScanFood AI permet de scanner ou rechercher les codes-barres des produits alimentaires afin de consulter leurs informations nutritionnelles.")
+        section("Informations enregistrées sur votre appareil",
+            "Les entrées du journal alimentaire et les préférences alimentaires sont enregistrées localement sur votre appareil. L’application ne propose pas de compte utilisateur et n’envoie pas ces entrées au développeur. La désinstallation ou l’effacement des données de l’application peut supprimer ces informations.")
+        section("Caméra",
+            "L’accès à la caméra sert uniquement à scanner les codes-barres. ScanFood AI n’enregistre pas intentionnellement et n’envoie pas de photos ou de vidéos.")
+        section("Recherche de produits et connexion Internet",
+            "Lorsque vous scannez un code-barres ou recherchez un produit, le code-barres ou les termes de recherche sont envoyés via HTTPS à Open Food Facts pour récupérer les informations du produit. Open Food Facts est un service tiers indépendant soumis à ses propres pratiques de confidentialité.")
+        section("Publicité et statistiques",
+            "La version actuelle de l’application n’intègre intentionnellement ni SDK publicitaire ni SDK d’analyse statistique.")
+        section("Enfants",
+            "L’application est un outil général d’information nutritionnelle et n’est pas conçue spécifiquement pour collecter des informations personnelles auprès des enfants.")
+        section("Sécurité et limites",
+            "Les données locales sont stockées dans l’espace privé de l’application. Aucune transmission sur Internet ne peut être garantie totalement sécurisée. Les informations nutritionnelles peuvent être incomplètes ou inexactes et ne remplacent pas un avis médical. Les alertes concernant les allergènes sont indicatives et ne doivent jamais être utilisées comme garantie contre une réaction allergique.")
+        section("Modifications et contact",
+            "Cette politique doit être mise à jour si les pratiques de traitement des données de l’application changent. Pour toute question relative à la confidentialité, contactez le développeur via les coordonnées figurant sur la fiche Google Play de l’application.")
+    }
+
     private fun margin(): LinearLayout.LayoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(10) }
     private fun scan() {
         try {
