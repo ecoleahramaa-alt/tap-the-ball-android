@@ -56,3 +56,5 @@ jobs:
           name: ScanFoodAI-signed-release-aab
           path: food-scanner/app/build/outputs/bundle/release/app-release.aab
           retention-days: 14
+
+# Rebuild release after upload-signing secrets are configured.
