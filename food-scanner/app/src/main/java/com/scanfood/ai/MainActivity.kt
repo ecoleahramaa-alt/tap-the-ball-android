@@ -637,6 +637,90 @@ class MainActivity : Activity() {
     }
 
     private fun margin(): LinearLayout.LayoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(10) }
+
+    private var standaloneCodeScan = false
+    private var generatedBarcode: android.graphics.Bitmap? = null
+
+    private fun showCodeScanner() {
+        resetContent()
+        root.addView(button("← Retour") { showHome() }, margin())
+        root.addView(text("▦  QR & Barcode Scanner", 25f, green, true), margin())
+        root.addView(text("Scannez les QR codes et les codes-barres. Le résultat est indépendant de la recherche nutritionnelle.", 14f, muted), margin())
+        root.addView(button("📷  Démarrer le scanner", {
+            standaloneCodeScan = true
+            try {
+                com.google.zxing.integration.android.IntentIntegrator(this)
+                    .setPrompt("Placez le QR code ou le code-barres dans le cadre")
+                    .setBeepEnabled(true).setCameraId(0).setOrientationLocked(false)
+                    .setDesiredBarcodeFormats(com.google.zxing.integration.android.IntentIntegrator.ALL_CODE_TYPES)
+                    .initiateScan()
+            } catch (_: Exception) {
+                standaloneCodeScan = false
+                Toast.makeText(this, "Impossible d’ouvrir le scanner.", Toast.LENGTH_SHORT).show()
+            }
+        }), margin())
+    }
+
+    private fun showCodeGenerator() {
+        resetContent()
+        root.addView(button("← Retour") { showHome() }, margin())
+        root.addView(text("✚  QR & Barcode Generator", 25f, green, true), margin())
+        root.addView(text("Créez un QR code pour un lien ou un texte, ou un code-barres.", 14f, muted), margin())
+        val names = listOf("QR Code", "Code 128", "EAN-13", "UPC-A")
+        val formats = listOf(com.google.zxing.BarcodeFormat.QR_CODE, com.google.zxing.BarcodeFormat.CODE_128, com.google.zxing.BarcodeFormat.EAN_13, com.google.zxing.BarcodeFormat.UPC_A)
+        val selector = Spinner(this).apply { adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, names) }
+        root.addView(text("Type de code", 16f, ink, true), margin())
+        root.addView(selector, margin())
+        val input = styleInput(EditText(this).apply { hint = "Entrez un lien, un texte ou un numéro"; setSingleLine(true) })
+        root.addView(text("Contenu", 16f, ink, true), margin())
+        root.addView(input, margin())
+        val preview = ImageView(this).apply { adjustViewBounds = true; scaleType = ImageView.ScaleType.FIT_CENTER; setPadding(dp(12), dp(12), dp(12), dp(12)); setBackgroundColor(Color.WHITE) }
+        val previewCard = card()
+        previewCard.addView(preview, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(230)))
+        root.addView(previewCard, margin())
+        val save = button("Enregistrer l’image") {
+            val bitmap = generatedBarcode
+            if (bitmap == null) Toast.makeText(this, "Créez d’abord un code.", Toast.LENGTH_SHORT).show()
+            else {
+                @Suppress("DEPRECATION")
+                val uri = android.provider.MediaStore.Images.Media.insertImage(contentResolver, bitmap, "ScanFoodAI-Code", "Code créé avec ScanFood AI")
+                Toast.makeText(this, if (uri != null) "Image enregistrée dans la galerie." else "Impossible d’enregistrer l’image.", Toast.LENGTH_LONG).show()
+            }
+        }
+        save.isEnabled = false
+        root.addView(button("Générer le code", {
+            val value = input.text.toString().trim()
+            if (value.isBlank()) { input.error = "Saisissez un contenu"; return@button }
+            val format = formats[selector.selectedItemPosition]
+            val valid = when (format) {
+                com.google.zxing.BarcodeFormat.EAN_13 -> value.matches(Regex("\\d{12}"))
+                com.google.zxing.BarcodeFormat.UPC_A -> value.matches(Regex("\\d{11}"))
+                else -> true
+            }
+            if (!valid) {
+                input.error = if (format == com.google.zxing.BarcodeFormat.EAN_13) "EAN-13 : saisissez 12 chiffres." else "UPC-A : saisissez 11 chiffres."
+                return@button
+            }
+            try {
+                val w = if (format == com.google.zxing.BarcodeFormat.QR_CODE) 800 else 1100
+                val h = if (format == com.google.zxing.BarcodeFormat.QR_CODE) 800 else 380
+                val hints = hashMapOf<com.google.zxing.EncodeHintType, Any>(com.google.zxing.EncodeHintType.MARGIN to 2, com.google.zxing.EncodeHintType.CHARACTER_SET to "UTF-8")
+                val matrix = com.google.zxing.MultiFormatWriter().encode(value, format, w, h, hints)
+                val bitmap = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
+                for (x in 0 until w) for (y in 0 until h) bitmap.setPixel(x, y, if (matrix[x, y]) Color.BLACK else Color.WHITE)
+                generatedBarcode = bitmap
+                preview.setImageBitmap(bitmap)
+                save.isEnabled = true
+                Toast.makeText(this, "Code créé avec succès.", Toast.LENGTH_SHORT).show()
+            } catch (_: Exception) {
+                generatedBarcode = null
+                save.isEnabled = false
+                Toast.makeText(this, "Impossible de créer ce code. Vérifiez le contenu.", Toast.LENGTH_LONG).show()
+            }
+        }), margin())
+        root.addView(save, margin())
+    }
+
     private fun scan() {
         try {
             com.google.zxing.integration.android.IntentIntegrator(this)
@@ -658,12 +742,25 @@ class MainActivity : Activity() {
         val result = com.google.zxing.integration.android.IntentIntegrator.parseActivityResult(requestCode, resultCode, data)
         if (result != null) {
             val code = result.contents
-            buildHome()
-            if (code.isNullOrBlank()) {
-                status.text = "Scan annulé."
+            if (standaloneCodeScan) {
+                standaloneCodeScan = false
+                showCodeScanner()
+                val c = card()
+                c.addView(text(if (code.isNullOrBlank()) "Scan annulé." else "Code détecté", 17f, green, true))
+                if (!code.isNullOrBlank()) {
+                    c.addView(text(code, 18f, ink, true))
+                    c.addView(text("Format : " + (result.formatName ?: "Inconnu"), 13f, muted))
+                    c.addView(button("Copier le contenu") {
+                        val clipboard = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Code scanné", code))
+                        Toast.makeText(this, "Copié.", Toast.LENGTH_SHORT).show()
+                    }, margin())
+                }
+                root.addView(c, margin())
             } else {
-                searchInput.setText(code)
-                search()
+                buildHome()
+                if (code.isNullOrBlank()) status.text = "Scan annulé."
+                else { searchInput.setText(code); search() }
             }
         }
     }
