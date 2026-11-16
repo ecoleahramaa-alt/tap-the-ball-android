@@ -641,6 +641,13 @@ class MainActivity : Activity() {
     private var standaloneCodeScan = false
     private var generatedBarcode: android.graphics.Bitmap? = null
 
+    private fun barcodeCheckDigit(digits: String): String {
+        val sum = digits.reversed().mapIndexed { index, char ->
+            char.digitToInt() * if (index % 2 == 0) 3 else 1
+        }.sum()
+        return ((10 - sum % 10) % 10).toString()
+    }
+
     private fun showCodeScanner() {
         resetContent()
         root.addView(button("← Retour") { showHome() }, margin())
@@ -692,20 +699,21 @@ class MainActivity : Activity() {
             val value = input.text.toString().trim()
             if (value.isBlank()) { input.error = "Saisissez un contenu"; return@button }
             val format = formats[selector.selectedItemPosition]
-            val valid = when (format) {
-                com.google.zxing.BarcodeFormat.EAN_13 -> value.matches(Regex("\\d{12}"))
-                com.google.zxing.BarcodeFormat.UPC_A -> value.matches(Regex("\\d{11}"))
-                else -> true
+            val requiredDigits = when (format) {
+                com.google.zxing.BarcodeFormat.EAN_13 -> 12
+                com.google.zxing.BarcodeFormat.UPC_A -> 11
+                else -> 0
             }
-            if (!valid) {
-                input.error = if (format == com.google.zxing.BarcodeFormat.EAN_13) "EAN-13 : saisissez 12 chiffres." else "UPC-A : saisissez 11 chiffres."
+            if (requiredDigits > 0 && !value.matches(Regex("\\d{$requiredDigits}"))) {
+                input.error = if (format == com.google.zxing.BarcodeFormat.EAN_13) "EAN-13 : saisissez 12 chiffres (la clé sera ajoutée)." else "UPC-A : saisissez 11 chiffres (la clé sera ajoutée)."
                 return@button
             }
             try {
+                val encodedValue = if (requiredDigits > 0) value + barcodeCheckDigit(value) else value
                 val w = if (format == com.google.zxing.BarcodeFormat.QR_CODE) 800 else 1100
                 val h = if (format == com.google.zxing.BarcodeFormat.QR_CODE) 800 else 380
                 val hints = hashMapOf<com.google.zxing.EncodeHintType, Any>(com.google.zxing.EncodeHintType.MARGIN to 2, com.google.zxing.EncodeHintType.CHARACTER_SET to "UTF-8")
-                val matrix = com.google.zxing.MultiFormatWriter().encode(value, format, w, h, hints)
+                val matrix = com.google.zxing.MultiFormatWriter().encode(encodedValue, format, w, h, hints)
                 val bitmap = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
                 for (x in 0 until w) for (y in 0 until h) bitmap.setPixel(x, y, if (matrix[x, y]) Color.BLACK else Color.WHITE)
                 generatedBarcode = bitmap
