@@ -345,14 +345,14 @@ class MainActivity : Activity() {
             }
             toolsGrid.addView(tile, params)
         }
+        toolTile("▦", "QR & Barcode Scanner", "Scanner QR et codes-barres", Color.rgb(13, 148, 136)) { showCodeScanner() }
+        toolTile("✚", "QR & Barcode Generator", "Créer QR et codes-barres", Color.rgb(116, 88, 184)) { showCodeGenerator() }
         toolTile("⇄", "Comparer", "Comparer deux produits", Color.rgb(27, 119, 92)) { showCompare() }
         toolTile("♥", "Favoris", "Produits enregistrés", Color.rgb(202, 74, 104)) { showFavorites() }
         toolTile("↻", "Historique", "Produits consultés", Color.rgb(50, 111, 190)) { showHistory() }
         toolTile("＋", "Calories", "Journal alimentaire", Color.rgb(230, 126, 34)) { showCalorieJournal() }
         toolTile("♧", "Profil alimentaire", "Allergies et préférences", Color.rgb(13, 148, 136)) { showDietProfile() }
         toolTile("文", "Langue", "Modifier la langue", Color.rgb(116, 88, 184)) { showSettings() }
-        toolTile("▦", "QR & Barcode Scanner", "Scanner QR et codes-barres", Color.rgb(13, 148, 136)) { showCodeScanner() }
-        toolTile("✚", "QR & Barcode Generator", "Créer QR et codes-barres", Color.rgb(116, 88, 184)) { showCodeGenerator() }
         root.addView(toolsGrid, margin())
 
         root.addView(text("Résultat du scan / de la recherche", 21f, green, true), margin())
@@ -372,8 +372,6 @@ class MainActivity : Activity() {
             listOf("♥", "Mes favoris", "Retrouver rapidement les produits enregistrés."),
             listOf("↻", "Historique des scans", "Revoir les produits récemment consultés."),
             listOf("文", "Langue et affichage", "Choisir parmi 8 langues disponibles."),
-            listOf("▦", "QR & Barcode Scanner", "Lire les QR codes et codes-barres."),
-            listOf("✚", "QR & Barcode Generator", "Créer des QR codes et codes-barres.")
         )
         toolList.forEachIndexed { index, item ->
             val itemCard = card().apply {
@@ -397,7 +395,7 @@ class MainActivity : Activity() {
             copy.addView(text(item[2], 12f, muted))
             itemCard.addView(copy, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
             itemCard.addView(text("›", 26f, green, true))
-            itemCard.setOnClickListener { when (index) { 0 -> showCompare(); 1 -> showFavorites(); 2 -> showHistory(); 3 -> showSettings(); 4 -> showCodeScanner(); else -> showCodeGenerator() } }
+            itemCard.setOnClickListener { when (index) { 0 -> showCompare(); 1 -> showFavorites(); 2 -> showHistory(); else -> showSettings() } }
             root.addView(itemCard, margin())
         }
     }
